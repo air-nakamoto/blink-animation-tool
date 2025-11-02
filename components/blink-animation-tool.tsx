@@ -1124,7 +1124,7 @@ export function BlinkAnimationTool() {
                         <li>画質を下げる（85→70等）</li>
                         <li>
                           <a
-                            href="https://ccfolia.com/tools/apng-compress"
+                            href="https://minify.ccfolia.com/"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline font-medium"
@@ -1278,7 +1278,7 @@ export function BlinkAnimationTool() {
                           <p className="font-medium mb-1">ダウンロード後の対処：</p>
                           <p>
                             <a
-                              href="https://ccfolia.com/tools/apng-compress"
+                              href="https://minify.ccfolia.com/"
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-red-800 hover:text-red-900 underline font-semibold inline-flex items-center gap-1"
