@@ -534,6 +534,8 @@ export function BlinkAnimationTool() {
   const currentFrameRef = useRef(0)
   const upngLoadedRef = useRef(false)
   const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
+  const [downloadedFileSizeMB, setDownloadedFileSizeMB] = useState<number | null>(null)
+  const [showPostDownloadMessage, setShowPostDownloadMessage] = useState(false)
 
   const handlePresetSelect = (preset: EmotionPreset) => {
     setLoopPattern({ steps: createLoopSteps(preset.steps) })
@@ -975,13 +977,11 @@ export function BlinkAnimationTool() {
       setExportProgress(100)
       console.log("Export completed successfully!")
 
-      const humanReadableSize =
-        bestSizeMB >= 1 ? `${bestSizeMB.toFixed(2)} MB` : `${(bestSizeMB * 1024).toFixed(2)} KB`
-      const message =
-        bestSizeMB > SIZE_WARNING_THRESHOLD_MB
-          ? `エクスポートが完了しましたが、ファイルサイズは ${humanReadableSize} です。\n必要に応じて瞬き回数や閉じ維持時間、FPS・品質を調整して再度試してみてください。`
-          : `エクスポートが完了しました！\nファイルサイズ: ${humanReadableSize}`
-      alert(message)
+      // 5MB以上の場合のみメッセージを表示
+      if (bestSizeMB > SIZE_WARNING_THRESHOLD_MB) {
+        setDownloadedFileSizeMB(bestSizeMB)
+        setShowPostDownloadMessage(true)
+      }
     } catch (error) {
       console.error("Export error:", error)
       throw error
@@ -1265,35 +1265,6 @@ export function BlinkAnimationTool() {
                   </div>
                 </div>
 
-                {estimatedSizeMB !== null && estimatedSizeMB > SIZE_WARNING_THRESHOLD_MB && (
-                  <div className="rounded-lg border border-red-300 bg-red-50 text-red-700 px-3 py-3 text-sm">
-                    <div className="space-y-1.5 text-xs">
-                      <p className="font-semibold text-base">⚠ ファイルサイズが大きくなる可能性があります</p>
-                      <p className="text-xs">現在の設定では5MBを超える可能性があり、読み込みが重くなる場合があります。</p>
-                      <p className="font-medium mt-2">このツールでできる対処：</p>
-                      <ul className="list-disc list-inside space-y-0.5 pl-1">
-                        <li>「詳細設定」でアニメーション長さを短くする</li>
-                        <li>フレームレートを下げる（24fps → 12fps等）</li>
-                        <li>画質を下げる（85 → 70等）</li>
-                      </ul>
-                      <div className="mt-2 pt-2 border-t border-red-200">
-                        <p className="font-medium mb-1">ダウンロード後の対処：</p>
-                        <p>
-                          <a
-                            href="https://minify.ccfolia.com/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-red-800 hover:text-red-900 underline font-semibold inline-flex items-center gap-1"
-                          >
-                            ココフォリアの圧縮ツール
-                            <span className="text-xs">↗</span>
-                          </a>
-                          で更に圧縮できます
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -1354,6 +1325,41 @@ export function BlinkAnimationTool() {
                   <div className="space-y-2">
                     <Progress value={exportProgress} />
                     <p className="text-sm text-center text-gray-600">{exportProgress}%</p>
+                  </div>
+                )}
+
+                {showPostDownloadMessage && downloadedFileSizeMB !== null && (
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 space-y-2 text-sm">
+                        <p className="font-semibold text-amber-900">
+                          ℹ️ ファイルサイズが {downloadedFileSizeMB.toFixed(2)} MB です
+                        </p>
+                        <p className="text-xs text-amber-800">
+                          ココフォリア等のツールでは5MB以上のファイルが動作しない場合があります。
+                        </p>
+                        <div className="pt-1">
+                          <a
+                            href="https://minify.ccfolia.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-amber-900 hover:text-amber-950 underline font-semibold inline-flex items-center gap-1 text-xs"
+                          >
+                            ココフォリアの圧縮ツールで圧縮する
+                            <span>↗</span>
+                          </a>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowPostDownloadMessage(false)}
+                        className="text-amber-700 hover:text-amber-900 transition-colors"
+                        aria-label="メッセージを閉じる"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
