@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Play, Pause, Info, ChevronDown, Download, Plus, Trash2 } from "lucide-react"
+import { Play, Pause, Info, ChevronDown, Download, Plus, Trash2, Loader2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 
 // UPNG type definition
@@ -1317,8 +1317,17 @@ export function BlinkAnimationTool() {
                     }
                   }}
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  {isExporting ? "生成中..." : "ダウンロード"}
+                  {isExporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      生成中...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      ダウンロード
+                    </>
+                  )}
                 </Button>
 
                 {isExporting && (
