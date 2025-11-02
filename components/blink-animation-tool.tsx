@@ -765,11 +765,25 @@ export function BlinkAnimationTool() {
       frames = generateLoopPatternFrames(loopPattern, settings)
 
       if (frames.length > 0 && exportWidth > 0 && exportHeight > 0) {
-        const colorCount = computeColorCount(imageQuality, compressionLevel)
-        const colorFactor = colorCount / 256
-        const baseCompression = 0.06 + colorFactor * 0.26
-        const estimatedBytes =
-          exportWidth * exportHeight * frames.length * 4 * baseCompression
+        // より正確なAPNGファイルサイズの推定
+        const pixelsPerFrame = exportWidth * exportHeight
+        const totalPixels = pixelsPerFrame * frames.length
+
+        // PNG圧縮率の推定（品質と圧縮レベルから）
+        const qualityFactor = imageQuality / 100
+        const compressionFactor = compressionLevel / 10
+
+        // 典型的なPNG圧縮率: 20-50%（画像内容に依存）
+        // 品質が高いほど、圧縮レベルが低いほどファイルサイズが大きい
+        const pngCompressionRatio = 0.15 + (qualityFactor * 0.25) - (compressionFactor * 0.08)
+
+        // RGBA 4バイト/ピクセル × 圧縮率
+        const frameDataSize = totalPixels * 4 * pngCompressionRatio
+
+        // APNGのオーバーヘッド（ヘッダー + 各フレームのメタデータ）
+        const overhead = 2048 + (frames.length * 150)
+
+        const estimatedBytes = frameDataSize + overhead
         const estimatedMB = estimatedBytes / (1024 * 1024)
         setEstimatedSizeMB(Number.isFinite(estimatedMB) ? estimatedMB : null)
       } else {
@@ -1251,50 +1265,33 @@ export function BlinkAnimationTool() {
                   </div>
                 </div>
 
-                {estimatedSizeMB !== null && (
-                  <div
-                    className={`rounded-lg border px-3 py-3 text-sm ${
-                      estimatedSizeMB > SIZE_WARNING_THRESHOLD_MB
-                        ? "border-red-300 bg-red-50 text-red-700"
-                        : "border-slate-200 bg-slate-50 text-slate-700"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">想定ファイルサイズ</span>
-                      <span className="font-mono text-base">
-                        {estimatedSizeMB.toFixed(2)} MB
-                      </span>
-                    </div>
-                    {estimatedSizeMB > SIZE_WARNING_THRESHOLD_MB ? (
-                      <div className="mt-2 space-y-1.5 text-xs">
-                        <p className="font-semibold">⚠ 5MBを超えると読み込みが重くなる場合があります</p>
-                        <p className="font-medium">このツールでできる対処：</p>
-                        <ul className="list-disc list-inside space-y-0.5 pl-1">
-                          <li>「詳細設定」でアニメーション長さを短くする</li>
-                          <li>フレームレートを下げる（24fps → 12fps等）</li>
-                          <li>画質を下げる（85 → 70等）</li>
-                        </ul>
-                        <div className="mt-2 pt-2 border-t border-red-200">
-                          <p className="font-medium mb-1">ダウンロード後の対処：</p>
-                          <p>
-                            <a
-                              href="https://minify.ccfolia.com/"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-red-800 hover:text-red-900 underline font-semibold inline-flex items-center gap-1"
-                            >
-                              ココフォリアの圧縮ツール
-                              <span className="text-xs">↗</span>
-                            </a>
-                            で更に圧縮できます
-                          </p>
-                        </div>
+                {estimatedSizeMB !== null && estimatedSizeMB > SIZE_WARNING_THRESHOLD_MB && (
+                  <div className="rounded-lg border border-red-300 bg-red-50 text-red-700 px-3 py-3 text-sm">
+                    <div className="space-y-1.5 text-xs">
+                      <p className="font-semibold text-base">⚠ ファイルサイズが大きくなる可能性があります</p>
+                      <p className="text-xs">現在の設定では5MBを超える可能性があり、読み込みが重くなる場合があります。</p>
+                      <p className="font-medium mt-2">このツールでできる対処：</p>
+                      <ul className="list-disc list-inside space-y-0.5 pl-1">
+                        <li>「詳細設定」でアニメーション長さを短くする</li>
+                        <li>フレームレートを下げる（24fps → 12fps等）</li>
+                        <li>画質を下げる（85 → 70等）</li>
+                      </ul>
+                      <div className="mt-2 pt-2 border-t border-red-200">
+                        <p className="font-medium mb-1">ダウンロード後の対処：</p>
+                        <p>
+                          <a
+                            href="https://minify.ccfolia.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-red-800 hover:text-red-900 underline font-semibold inline-flex items-center gap-1"
+                          >
+                            ココフォリアの圧縮ツール
+                            <span className="text-xs">↗</span>
+                          </a>
+                          で更に圧縮できます
+                        </p>
                       </div>
-                    ) : (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        実際のサイズは圧縮結果により多少前後します。
-                      </p>
-                    )}
+                    </div>
                   </div>
                 )}
 
