@@ -1078,53 +1078,64 @@ export function BlinkAnimationTool() {
           <CollapsibleContent>
             <CardContent>
               <div className="space-y-4 text-sm text-gray-600">
-                <p>
-                  このツールは、3枚のキャラクター画像（開いた目、半開き、閉じた目）から、自然な瞬きアニメーションを簡単に作成するツールです。
+                <p className="font-medium text-gray-900">
+                  3枚の画像から自然な瞬きアニメーション（APNG形式）を作成できます
                 </p>
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">作成の3ステップ</h4>
 
-                  <div className="space-y-3 mt-3">
+                <div className="space-y-2.5">
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">1</span>
                     <div>
-                      <h5 className="font-medium text-gray-900">1. 画像のアップロード</h5>
-                      <p className="mt-1">
-                        「開いた目」「半開きの目」「閉じた目」の3種類の画像を用意します（開いた目、閉じた目の2種類でも可）。<br/>
-                        それぞれ指定されたエリアに画像をアップロード（またはドラッグ＆ドロップ）してください。<br/>
-                        <span className="text-xs">※2枚で作成する場合は、「2枚で生成する」にチェックを入れてください。</span>
-                      </p>
-                    </div>
-
-                    <div>
-                      <h5 className="font-medium text-gray-900">2. キャラクターの感情に沿った瞬きを選びます</h5>
-                      <p className="mt-1 mb-2">作成方法は2通りあります。</p>
-
-                      <div className="ml-3 space-y-2">
-                        <div>
-                          <p className="font-medium text-gray-800">方法1) 感情プリセットを選ぶ</p>
-                          <p className="text-sm">
-                            [ 平常 ] [ 穏やか ] [ ご機嫌 ] といった感情ボタンから、イメージに合うものをクリックしてください。<br/>
-                            キャラクターの感情に合わせた自然な瞬きが自動で設定されます。
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="font-medium text-gray-800">方法2) 詳細設定をカスタムする</p>
-                          <p className="text-sm">
-                            [ 詳細設定 ] ボタンから、より細かい調整が可能です。<br/>
-                            「ループパターン」機能で「瞬き回数」「速度」「待機時間」を自由にカスタムしたアニメーションを作成できます。
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h5 className="font-medium text-gray-900">3. プレビューとダウンロード</h5>
-                      <p className="mt-1">
-                        設定を変更すると、プレビューがリアルタイムで更新されます。<br/>
-                        「ダウンロード」ボタンを押して、完成したアニメーション画像を保存してください。
-                      </p>
+                      <p className="font-medium text-gray-900">画像をアップロード</p>
+                      <p className="text-xs mt-0.5">開いた目・半開き・閉じた目の3枚（または開いた目・閉じた目の2枚）</p>
                     </div>
                   </div>
+
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">2</span>
+                    <div>
+                      <p className="font-medium text-gray-900">感情プリセットを選択</p>
+                      <p className="text-xs mt-0.5">平常・眠気・驚きなど12種類から選択、または詳細設定でカスタマイズ</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">3</span>
+                    <div>
+                      <p className="font-medium text-gray-900">ダウンロード</p>
+                      <p className="text-xs mt-0.5">プレビューで確認後、ボタンを押してダウンロード</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-3 mt-4">
+                  <details className="group">
+                    <summary className="cursor-pointer font-medium text-gray-900 text-sm hover:text-blue-600 transition-colors list-none flex items-center gap-2">
+                      <span className="text-blue-500">💡</span>
+                      <span>ファイルサイズが5MBを超える場合</span>
+                      <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="mt-2 text-xs space-y-1.5 pl-6">
+                      <p>ココフォリア等のTRPGツールでは、アップロードできる画像サイズに制限があります。</p>
+                      <p className="font-medium text-gray-900">対処法：</p>
+                      <ul className="list-disc pl-4 space-y-1">
+                        <li>「詳細設定」でアニメーション長さを短くする</li>
+                        <li>フレームレートを下げる（24fps→12fps等）</li>
+                        <li>画質を下げる（85→70等）</li>
+                        <li>
+                          <a
+                            href="https://ccfolia.com/tools/apng-compress"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline font-medium"
+                          >
+                            ココフォリアの圧縮ツール
+                          </a>
+                          を使用する
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
                 </div>
               </div>
             </CardContent>
@@ -1255,13 +1266,29 @@ export function BlinkAnimationTool() {
                       </span>
                     </div>
                     {estimatedSizeMB > SIZE_WARNING_THRESHOLD_MB ? (
-                      <div className="mt-2 space-y-1 text-xs">
-                        <p className="font-semibold">⚠ 5MBを超えると読み込みが重くなる場合があります。</p>
-                        <ul className="list-disc list-inside space-y-0.5">
-                          <li>アニメーション長さや瞬き回数を短くする</li>
-                          <li>閉じた状態の維持やループ数を控えめにする</li>
-                          <li>フレームレートや画質スライダーを下げる</li>
+                      <div className="mt-2 space-y-1.5 text-xs">
+                        <p className="font-semibold">⚠ 5MBを超えると読み込みが重くなる場合があります</p>
+                        <p className="font-medium">このツールでできる対処：</p>
+                        <ul className="list-disc list-inside space-y-0.5 pl-1">
+                          <li>「詳細設定」でアニメーション長さを短くする</li>
+                          <li>フレームレートを下げる（24fps → 12fps等）</li>
+                          <li>画質を下げる（85 → 70等）</li>
                         </ul>
+                        <div className="mt-2 pt-2 border-t border-red-200">
+                          <p className="font-medium mb-1">ダウンロード後の対処：</p>
+                          <p>
+                            <a
+                              href="https://ccfolia.com/tools/apng-compress"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-red-800 hover:text-red-900 underline font-semibold inline-flex items-center gap-1"
+                            >
+                              ココフォリアの圧縮ツール
+                              <span className="text-xs">↗</span>
+                            </a>
+                            で更に圧縮できます
+                          </p>
+                        </div>
                       </div>
                     ) : (
                       <p className="mt-2 text-xs text-muted-foreground">
