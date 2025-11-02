@@ -5,14 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Upload, Play, Pause, Info, ChevronDown } from "lucide-react"
+import { Play, Pause, Info, ChevronDown, Download, Plus, Trash2 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 
 // UPNG type definition
 declare global {
@@ -31,114 +27,465 @@ type ImageState = {
 
 type ImageType = "open" | "halfOpen" | "closed"
 
-type BlinkPattern = {
-  name: string
-  description: string
-  sequence: Array<"open" | "halfOpen" | "closed">
-  timingRatio: number[]
-}
 
-type EmotionPreset = {
-  name: string
-  description: string
+type LoopStep = {
+  id: string
+  blinkCount: number
   blinkSpeed: number
-  blinkDuration: number
-  blinkPattern: string
-  randomness: number
+  blinkInterval: number
+  pauseDuration: number
+  closedHold: number
 }
 
-type LoopMode = "once" | "infinite" | "count"
-type ExportFormat = "apng" | "webp" | "gif"
-
-const blinkPatterns: Record<string, BlinkPattern> = {
-  regular: {
-    name: "通常",
-    description: "標準的なまばたきパターン",
-    sequence: ["open", "halfOpen", "closed", "halfOpen", "open"],
-    timingRatio: [1, 0.3, 0.2, 0.3, 1],
-  },
-  double: {
-    name: "二重",
-    description: "連続2回のまばたき",
-    sequence: ["open", "halfOpen", "closed", "halfOpen", "open", "halfOpen", "closed", "halfOpen", "open"],
-    timingRatio: [1, 0.3, 0.2, 0.3, 0.5, 0.3, 0.2, 0.3, 1],
-  },
-  sleepy: {
-    name: "眠そう",
-    description: "ゆっくり閉じて少し閉じたまま",
-    sequence: ["open", "halfOpen", "closed", "closed", "halfOpen", "open"],
-    timingRatio: [1, 0.5, 0.3, 0.8, 0.5, 1],
-  },
-  surprised: {
-    name: "驚き",
-    description: "素早い連続まばたき",
-    sequence: ["open", "closed", "open", "closed", "open"],
-    timingRatio: [0.5, 0.2, 0.3, 0.2, 0.5],
-  },
-  slow: {
-    name: "ゆっくり",
-    description: "ゆっくりとしたまばたき",
-    sequence: ["open", "halfOpen", "closed", "halfOpen", "open"],
-    timingRatio: [1.5, 0.8, 0.5, 0.8, 1.5],
-  },
-  quick: {
-    name: "素早い",
-    description: "素早いまばたき",
-    sequence: ["open", "closed", "open"],
-    timingRatio: [0.5, 0.15, 0.5],
-  },
+interface LoopPattern {
+  steps: LoopStep[]
 }
 
-const emotionPresets: Record<string, EmotionPreset> = {
-  normal: {
-    name: "通常",
-    description: "普通の状態のまばたき",
-    blinkSpeed: 3000,
-    blinkDuration: 300,
-    blinkPattern: "regular",
-    randomness: 20,
+type EmotionCategory = "basic" | "negative" | "high-energy"
+
+type PresetStep = Omit<LoopStep, "id" | "closedHold"> & {
+  closedHold?: number
+}
+
+interface EmotionPreset {
+  id: string
+  emoji: string
+  name: string
+  description: string
+  category: EmotionCategory
+  steps: PresetStep[]
+}
+
+const CUSTOM_PRESET_ID = "custom"
+const DEFAULT_PRESET_ID = "heijo"
+
+const createLoopSteps = (steps: PresetStep[]): LoopStep[] =>
+  steps.map((step) => ({
+    id: crypto.randomUUID(),
+    blinkCount: step.blinkCount,
+    blinkSpeed: step.blinkSpeed,
+    blinkInterval: step.blinkInterval,
+    pauseDuration: step.pauseDuration,
+    closedHold: step.closedHold ?? 0,
+  }))
+
+const SIZE_WARNING_THRESHOLD_MB = 5
+
+const computeColorCount = (quality: number, compressionLevel: number) => {
+  const qualityFactor = Math.max(0.3, quality / 100)
+  const compressionFactor = Math.max(0.35, 1 - (compressionLevel - 1) * 0.05)
+  const count = Math.round(256 * qualityFactor * compressionFactor)
+  return Math.max(16, Math.min(256, count))
+}
+
+const EMOTION_PRESETS: EmotionPreset[] = [
+  {
+    id: "heijo",
+    emoji: "😐",
+    name: "平常",
+    description: "基本の状態",
+    category: "basic",
+    steps: [
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.15,
+        blinkInterval: 0.2,
+        pauseDuration: 3.0,
+      },
+    ],
   },
-  sleepy: {
-    name: "眠い",
-    description: "眠そうなまばたき",
-    blinkSpeed: 2000,
-    blinkDuration: 600,
-    blinkPattern: "sleepy",
-    randomness: 30,
+  {
+    id: "odayaka",
+    emoji: "😌",
+    name: "穏やか",
+    description: "リラックス",
+    category: "basic",
+    steps: [
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.2,
+        blinkInterval: 0.2,
+        pauseDuration: 2.8,
+      },
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.25,
+        blinkInterval: 0.2,
+        pauseDuration: 4.0,
+      },
+    ],
   },
-  surprised: {
-    name: "驚き",
-    description: "驚いた時のまばたき",
-    blinkSpeed: 500,
-    blinkDuration: 200,
-    blinkPattern: "surprised",
-    randomness: 10,
+  {
+    id: "gokigen",
+    emoji: "😊",
+    name: "ご機嫌",
+    description: "楽しい気分",
+    category: "basic",
+    steps: [
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.15,
+        blinkInterval: 0.2,
+        pauseDuration: 2.5,
+      },
+      {
+        blinkCount: 2,
+        blinkSpeed: 0.12,
+        blinkInterval: 0.2,
+        pauseDuration: 3.0,
+      },
+    ],
   },
-  focused: {
+  {
+    id: "shuchu",
+    emoji: "🤔",
     name: "集中",
-    description: "集中している時のまばたき",
-    blinkSpeed: 5000,
-    blinkDuration: 250,
-    blinkPattern: "regular",
-    randomness: 15,
+    description: "瞬き少ない",
+    category: "basic",
+    steps: [
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.15,
+        blinkInterval: 0.2,
+        pauseDuration: 8.0,
+      },
+    ],
   },
-  nervous: {
+  {
+    id: "kincho",
+    emoji: "😰",
     name: "緊張",
-    description: "緊張している時のまばたき",
-    blinkSpeed: 1500,
-    blinkDuration: 250,
-    blinkPattern: "double",
-    randomness: 40,
+    description: "落ち着かない",
+    category: "negative",
+    steps: [
+      {
+        blinkCount: 2,
+        blinkSpeed: 0.1,
+        blinkInterval: 0.2,
+        pauseDuration: 1.5,
+      },
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.12,
+        blinkInterval: 0.2,
+        pauseDuration: 1.8,
+      },
+    ],
   },
-  relaxed: {
-    name: "リラックス",
-    description: "リラックスしている時のまばたき",
-    blinkSpeed: 4000,
-    blinkDuration: 400,
-    blinkPattern: "slow",
-    randomness: 25,
+  {
+    id: "nemuke",
+    emoji: "😪",
+    name: "眠気",
+    description: "眠たい",
+    category: "negative",
+    steps: [
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.6,
+        blinkInterval: 0.2,
+        pauseDuration: 4.0,
+        closedHold: 0.8,
+      },
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.65,
+        blinkInterval: 0.2,
+        pauseDuration: 6.0,
+        closedHold: 1.2,
+      },
+    ],
   },
+  {
+    id: "kanashimi",
+    emoji: "😔",
+    name: "悲しみ",
+    description: "落ち込んでいる",
+    category: "negative",
+    steps: [
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.25,
+        blinkInterval: 0.2,
+        pauseDuration: 3.5,
+        closedHold: 0.4,
+      },
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.3,
+        blinkInterval: 0.2,
+        pauseDuration: 5.0,
+        closedHold: 0.6,
+      },
+    ],
+  },
+  {
+    id: "fuan",
+    emoji: "😟",
+    name: "不安",
+    description: "そわそわ",
+    category: "negative",
+    steps: [
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.13,
+        blinkInterval: 0.2,
+        pauseDuration: 2.2,
+      },
+      {
+        blinkCount: 2,
+        blinkSpeed: 0.11,
+        blinkInterval: 0.15,
+        pauseDuration: 2.5,
+      },
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.14,
+        blinkInterval: 0.2,
+        pauseDuration: 3.0,
+      },
+    ],
+  },
+  {
+    id: "odoroki",
+    emoji: "😲",
+    name: "驚き",
+    description: "びっくり",
+    category: "high-energy",
+    steps: [
+      {
+        blinkCount: 3,
+        blinkSpeed: 0.08,
+        blinkInterval: 0.15,
+        pauseDuration: 1.0,
+      },
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.1,
+        blinkInterval: 0.2,
+        pauseDuration: 2.0,
+      },
+      {
+        blinkCount: 2,
+        blinkSpeed: 0.11,
+        blinkInterval: 0.18,
+        pauseDuration: 2.5,
+      },
+    ],
+  },
+  {
+    id: "kofun",
+    emoji: "😤",
+    name: "興奮",
+    description: "ハイテンション",
+    category: "high-energy",
+    steps: [
+      {
+        blinkCount: 2,
+        blinkSpeed: 0.1,
+        blinkInterval: 0.15,
+        pauseDuration: 1.8,
+      },
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.12,
+        blinkInterval: 0.2,
+        pauseDuration: 2.0,
+      },
+      {
+        blinkCount: 2,
+        blinkSpeed: 0.11,
+        blinkInterval: 0.18,
+        pauseDuration: 1.5,
+      },
+    ],
+  },
+  {
+    id: "tere",
+    emoji: "😳",
+    name: "照れ",
+    description: "恥ずかしい",
+    category: "high-energy",
+    steps: [
+      {
+        blinkCount: 2,
+        blinkSpeed: 0.13,
+        blinkInterval: 0.25,
+        pauseDuration: 1.2,
+        closedHold: 0.25,
+      },
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.18,
+        blinkInterval: 0.2,
+        pauseDuration: 2.0,
+        closedHold: 0.3,
+      },
+      {
+        blinkCount: 3,
+        blinkSpeed: 0.11,
+        blinkInterval: 0.2,
+        pauseDuration: 1.5,
+        closedHold: 0.2,
+      },
+    ],
+  },
+  {
+    id: "taikutsu",
+    emoji: "😑",
+    name: "退屈",
+    description: "やる気なし",
+    category: "high-energy",
+    steps: [
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.35,
+        blinkInterval: 0.2,
+        pauseDuration: 4.5,
+        closedHold: 0.5,
+      },
+      {
+        blinkCount: 1,
+        blinkSpeed: 0.4,
+        blinkInterval: 0.2,
+        pauseDuration: 5.5,
+        closedHold: 0.7,
+      },
+    ],
+  },
+]
+
+const EMOTION_CATEGORY_TABS: Array<{ value: EmotionCategory; label: string }> = [
+  { value: "basic", label: "基本" },
+  { value: "negative", label: "ネガティブ" },
+  { value: "high-energy", label: "ハイエナジー" },
+]
+
+const getPresetById = (id: string) => EMOTION_PRESETS.find((preset) => preset.id === id)
+
+function generateLoopPatternFrames(
+  loopPattern: LoopPattern, 
+  settings: BlinkSettings
+): Frame[] {
+  const allFrames: Frame[] = []
+  const fps = settings.fps
+  const totalDuration = settings.animationLength
+  let currentTime = 0
+
+  // アニメーション長さまでループパターンを繰り返す
+  while (currentTime < totalDuration) {
+    for (const step of loopPattern.steps) {
+      const stepFrames = generateStepFrames(step, fps)
+      allFrames.push(...stepFrames)
+      
+      currentTime += calculateStepDuration(step)
+      
+      if (currentTime >= totalDuration) break
+    }
+  }
+
+  return allFrames
 }
+
+function generateStepFrames(step: LoopStep, fps: number): Frame[] {
+  const frames: Frame[] = []
+  
+  // 指定回数の瞬きを生成
+  for (let i = 0; i < step.blinkCount; i++) {
+    const holdDuration = i === step.blinkCount - 1 ? step.closedHold : 0
+    frames.push(...generateSingleBlink(step.blinkSpeed, fps, holdDuration))
+    
+    // 最後の瞬きでなければ間隔を追加
+    if (i < step.blinkCount - 1) {
+      const intervalFrames = Math.round(step.blinkInterval * fps)
+      for (let j = 0; j < intervalFrames; j++) {
+        frames.push({ imageType: 'open', duration: 1000 / fps })
+      }
+    }
+  }
+  
+  // 待機時間（開いた目）
+  const pauseFrames = Math.round(step.pauseDuration * fps)
+  for (let i = 0; i < pauseFrames; i++) {
+    frames.push({ imageType: 'open', duration: 1000 / fps })
+  }
+  
+  return frames
+}
+
+function generateSingleBlink(speed: number, fps: number, closedHoldSeconds = 0): Frame[] {
+  const blinkFrames = Math.max(5, Math.round(speed * fps))
+  const halfFrames = Math.floor(blinkFrames / 4)
+  const closedFrames = Math.max(1, Math.floor(blinkFrames / 5))
+  const holdFrames = Math.max(0, Math.round(closedHoldSeconds * fps))
+  
+  const frames: Frame[] = []
+  
+  // 開 → 半開き
+  for (let i = 0; i < halfFrames; i++) {
+    frames.push({ imageType: 'half', duration: 1000 / fps })
+  }
+  
+  // 半開き → 閉
+  for (let i = 0; i < closedFrames; i++) {
+    frames.push({ imageType: 'closed', duration: 1000 / fps })
+  }
+
+  // 閉じた状態を維持
+  for (let i = 0; i < holdFrames; i++) {
+    frames.push({ imageType: 'closed', duration: 1000 / fps })
+  }
+  
+  // 閉 → 半開き
+  for (let i = 0; i < halfFrames; i++) {
+    frames.push({ imageType: 'half', duration: 1000 / fps })
+  }
+
+  // 半開き → 開
+  frames.push({ imageType: 'open', duration: 1000 / fps })
+  
+  return frames
+}
+
+function calculateStepDuration(step: LoopStep): number {
+  return (
+    step.blinkSpeed * step.blinkCount +
+    step.blinkInterval * (step.blinkCount - 1) +
+    step.pauseDuration +
+    step.closedHold
+  )
+}
+
+const reduceFrameDensity = (frames: Frame[]): Frame[] => {
+  if (frames.length <= 2) return frames
+  const reduced: Frame[] = []
+  for (let i = 0; i < frames.length; i += 2) {
+    const first = frames[i]
+    const second = frames[i + 1]
+    if (second) {
+      reduced.push({
+        imageType: first.imageType,
+        duration: first.duration + second.duration,
+      })
+    } else {
+      reduced.push(first)
+    }
+  }
+  return reduced
+}
+
+
+type Frame = {
+  imageType: "open" | "half" | "closed"
+  duration: number
+}
+
+type BlinkSettings = {
+  fps: number
+  animationLength: number
+}
+
+
+
 
 export function BlinkAnimationTool() {
   const [images, setImages] = useState<ImageState>({
@@ -147,29 +494,113 @@ export function BlinkAnimationTool() {
     closed: null,
   })
   const [previewReady, setPreviewReady] = useState(false)
-  const [selectedEmotion, setSelectedEmotion] = useState<string>("normal")
-  const [useCustomSettings, setUseCustomSettings] = useState(false)
-  const [blinkSpeed, setBlinkSpeed] = useState(3000)
-  const [blinkDuration, setBlinkDuration] = useState(300)
-  const [selectedPattern, setSelectedPattern] = useState("regular")
-  const [randomnessEnabled, setRandomnessEnabled] = useState(true)
-  const [randomness, setRandomness] = useState(20)
-  const [loopMode, setLoopMode] = useState<LoopMode>("infinite")
-  const [maxLoops, setMaxLoops] = useState(3)
+
   const [isPlaying, setIsPlaying] = useState(false)
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("apng")
   const [exportProgress, setExportProgress] = useState(0)
   const [isExporting, setIsExporting] = useState(false)
   const [compressionLevel, setCompressionLevel] = useState(5)
   const [imageQuality, setImageQuality] = useState(85)
   const [showDescription, setShowDescription] = useState(false)
+  const [animationLength, setAnimationLength] = useState(10)
+  const [useTwoImageMode, setUseTwoImageMode] = useState(false)
+  const [fps, setFps] = useState(24)
+  const defaultPreset = getPresetById(DEFAULT_PRESET_ID)
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(
+    defaultPreset ? defaultPreset.id : CUSTOM_PRESET_ID
+  )
+  const [loopPattern, setLoopPattern] = useState<LoopPattern>(() => {
+    if (defaultPreset) {
+      return { steps: createLoopSteps(defaultPreset.steps) }
+    }
+    return {
+      steps: [
+        {
+          id: crypto.randomUUID(),
+          blinkCount: 1,
+          blinkSpeed: 0.12,
+          blinkInterval: 0.2,
+          pauseDuration: 3.0,
+          closedHold: 0,
+        },
+      ],
+    }
+  })
+  const selectedPreset =
+    selectedPresetId === CUSTOM_PRESET_ID ? undefined : getPresetById(selectedPresetId)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number | null>(null)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const currentFrameRef = useRef(0)
-  const loopCountRef = useRef(0)
   const upngLoadedRef = useRef(false)
+  const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
+
+  const handlePresetSelect = (preset: EmotionPreset) => {
+    setLoopPattern({ steps: createLoopSteps(preset.steps) })
+    setSelectedPresetId(preset.id)
+  }
+
+  const addLoopStep = () => {
+    setLoopPattern((prev) => ({
+      steps: [
+        ...prev.steps,
+        {
+          id: crypto.randomUUID(),
+          blinkCount: 1,
+          blinkSpeed: 0.12,
+          blinkInterval: 0.2,
+          pauseDuration: 3.0,
+          closedHold: 0,
+        },
+      ],
+    }))
+    setSelectedPresetId(CUSTOM_PRESET_ID)
+  }
+
+  const removeLoopStep = (id: string) => {
+    let removed = false
+    setLoopPattern((prev) => {
+      if (prev.steps.length <= 1) {
+        return prev
+      }
+      const filtered = prev.steps.filter((step) => {
+        if (step.id === id) {
+          removed = true
+          return false
+        }
+        return true
+      })
+      if (!removed) {
+        return prev
+      }
+      return { steps: filtered }
+    })
+    if (removed) {
+      setSelectedPresetId(CUSTOM_PRESET_ID)
+    }
+  }
+
+  const updateLoopStep = (id: string, field: keyof Omit<LoopStep, "id">, value: number) => {
+    let hasChanged = false
+    setLoopPattern((prev) => {
+      const updatedSteps = prev.steps.map((step) => {
+        if (step.id === id && step[field] !== value) {
+          hasChanged = true
+          return { ...step, [field]: value }
+        }
+        return step
+      })
+
+      if (!hasChanged) {
+        return prev
+      }
+
+      return { steps: updatedSteps }
+    })
+    if (hasChanged) {
+      setSelectedPresetId(CUSTOM_PRESET_ID)
+    }
+  }
 
   // Load pako and UPNG.js scripts
   useEffect(() => {
@@ -215,38 +646,55 @@ export function BlinkAnimationTool() {
   }, [])
 
   useEffect(() => {
-    if (images.open && images.halfOpen && images.closed) {
-      setPreviewReady(true)
-    } else {
-      setPreviewReady(false)
+    if (useTwoImageMode && images.halfOpen) {
+      setImages(prev => ({ ...prev, halfOpen: null }))
     }
-  }, [images])
+  }, [useTwoImageMode, images.halfOpen])
 
   useEffect(() => {
-    if (!useCustomSettings && selectedEmotion) {
-      const preset = emotionPresets[selectedEmotion]
-      setBlinkSpeed(preset.blinkSpeed)
-      setBlinkDuration(preset.blinkDuration)
-      setSelectedPattern(preset.blinkPattern)
-      setRandomness(preset.randomness)
+    const hasRequiredImages = useTwoImageMode
+      ? Boolean(images.open && images.closed)
+      : Boolean(images.open && images.halfOpen && images.closed)
+
+    if (hasRequiredImages) {
+      setPreviewReady(true)
+      setIsPlaying(true)
+    } else {
+      setPreviewReady(false)
+      setIsPlaying(false)
     }
-  }, [selectedEmotion, useCustomSettings])
+  }, [images, useTwoImageMode])
 
   // Canvas animation effect
   useEffect(() => {
-    if (!previewReady || !isPlaying || !canvasRef.current) return
+    if (!previewReady || !canvasRef.current) return
 
     const canvas = canvasRef.current
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    // Load images
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+      animationRef.current = null
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+
+    const resolvedImages: Record<"open" | "halfOpen" | "closed", string | null> = {
+      open: images.open,
+      halfOpen: useTwoImageMode ? images.open : images.halfOpen,
+      closed: useTwoImageMode ? images.halfOpen : images.closed,
+    }
+
     const loadedImages: Record<string, HTMLImageElement> = {}
     const imageKeys: Array<"open" | "halfOpen" | "closed"> = ["open", "halfOpen", "closed"]
+    const keysToLoad = imageKeys.filter((key) => resolvedImages[key])
 
     const loadImages = async () => {
       await Promise.all(
-        imageKeys.map(
+        keysToLoad.map(
           (key) =>
             new Promise<void>((resolve) => {
               const img = new Image()
@@ -256,142 +704,86 @@ export function BlinkAnimationTool() {
                 resolve()
               }
               img.onerror = () => resolve()
-              img.src = images[key]!
+              const src = resolvedImages[key]
+              if (src) {
+                img.src = src
+              } else {
+                resolve()
+              }
             })
         )
       )
     }
 
-    let animationStartTime = Date.now()
-    let lastBlinkTime = Date.now()
-    let currentBlinkIndex = 0
-    let isBlinking = false
-    let blinkStartTime = 0
-
-    const pattern = blinkPatterns[selectedPattern]
-
-    const drawImage = (imageKey: "open" | "halfOpen" | "closed") => {
-      const img = loadedImages[imageKey]
-      if (!img) return
-
-      // Clear canvas
+    const drawImage = (imageKey: "open" | "half" | "closed") => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // Calculate aspect ratio
-      const canvasAspect = canvas.width / canvas.height
-      const imgAspect = img.width / img.height
+      const actualKey = imageKey === "half" ? "halfOpen" : imageKey
+      const img = loadedImages[actualKey]
+      if (!img) return
 
-      let drawWidth, drawHeight, drawX, drawY
-
-      if (imgAspect > canvasAspect) {
-        drawWidth = canvas.width
-        drawHeight = canvas.width / imgAspect
-        drawX = 0
-        drawY = (canvas.height - drawHeight) / 2
-      } else {
-        drawHeight = canvas.height
-        drawWidth = canvas.height * imgAspect
-        drawX = (canvas.width - drawWidth) / 2
-        drawY = 0
-      }
-
-      ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
     }
 
+    let frameIndex = 0
+    let frames: Frame[] = []
+    let exportWidth = 0
+    let exportHeight = 0
+
     const animate = () => {
-      const now = Date.now()
-
-      if (!isBlinking) {
-        // Check if it's time to blink
-        const timeSinceLastBlink = now - lastBlinkTime
-        let effectiveBlinkSpeed = blinkSpeed
-
-        // Apply randomness
-        if (randomnessEnabled) {
-          const randomFactor = 1 + ((Math.random() - 0.5) * 2 * randomness) / 100
-          effectiveBlinkSpeed *= randomFactor
-        }
-
-        if (timeSinceLastBlink >= effectiveBlinkSpeed) {
-          // Check if we've reached max loops
-          if (loopMode === "count" && loopCountRef.current >= maxLoops) {
-            setIsPlaying(false)
-            drawImage("open")
-            return
-          }
-
-          // Start blinking
-          isBlinking = true
-          blinkStartTime = now
-          currentBlinkIndex = 0
-          lastBlinkTime = now
-
-          if (loopMode === "count") {
-            loopCountRef.current++
-          }
-        } else {
-          drawImage("open")
-        }
+      if (frameIndex >= frames.length) {
+        frameIndex = 0
       }
 
-      if (isBlinking) {
-        const blinkElapsed = now - blinkStartTime
-        const totalBlinkDuration = pattern.timingRatio.reduce((sum, ratio) => sum + ratio, 0)
-        const normalizedTime = blinkElapsed / blinkDuration
+      const frame = frames[frameIndex]
+      drawImage(frame.imageType)
+      frameIndex++
 
-        // Find current frame
-        let accumulatedRatio = 0
-        let frameIndex = 0
-
-        for (let i = 0; i < pattern.timingRatio.length; i++) {
-          accumulatedRatio += pattern.timingRatio[i] / totalBlinkDuration
-          if (normalizedTime <= accumulatedRatio) {
-            frameIndex = i
-            break
-          }
-        }
-
-        if (frameIndex >= pattern.sequence.length || normalizedTime >= 1) {
-          // Blink finished
-          isBlinking = false
-          drawImage("open")
-        } else {
-          const imageKey = pattern.sequence[frameIndex]
-          drawImage(imageKey)
-        }
-      }
-
-      if (loopMode === "once" && loopCountRef.current >= 1) {
-        setIsPlaying(false)
-        return
-      }
-
-      animationRef.current = requestAnimationFrame(animate)
+      timeoutRef.current = setTimeout(() => {
+        animationRef.current = requestAnimationFrame(animate)
+      }, frame.duration)
     }
 
     loadImages().then(() => {
-      // Set canvas size based on first image
-      if (loadedImages.open) {
-        const img = loadedImages.open
-        const maxWidth = 500
-        const maxHeight = 300
-        const aspectRatio = img.width / img.height
+      const referenceImage =
+        loadedImages.open || loadedImages.halfOpen || loadedImages.closed
 
-        if (img.width > maxWidth || img.height > maxHeight) {
-          if (aspectRatio > maxWidth / maxHeight) {
-            canvas.width = maxWidth
-            canvas.height = maxWidth / aspectRatio
-          } else {
-            canvas.height = maxHeight
-            canvas.width = maxHeight * aspectRatio
-          }
-        } else {
-          canvas.width = img.width
-          canvas.height = img.height
-        }
+      if (referenceImage) {
+        exportWidth = referenceImage.width
+        exportHeight = referenceImage.height
+
+        const aspectRatio = referenceImage.width / referenceImage.height
+        const maxPreviewWidth = 500
+        const previewWidth = Math.min(referenceImage.width, maxPreviewWidth)
+        const previewHeight = Math.max(1, Math.round(previewWidth / aspectRatio))
+
+        canvas.width = previewWidth
+        canvas.height = previewHeight
       }
 
-      animate()
+      const settings: BlinkSettings = { fps, animationLength }
+      frames = generateLoopPatternFrames(loopPattern, settings)
+
+      if (frames.length > 0 && exportWidth > 0 && exportHeight > 0) {
+        const colorCount = computeColorCount(imageQuality, compressionLevel)
+        const colorFactor = colorCount / 256
+        const baseCompression = 0.06 + colorFactor * 0.26
+        const estimatedBytes =
+          exportWidth * exportHeight * frames.length * 4 * baseCompression
+        const estimatedMB = estimatedBytes / (1024 * 1024)
+        setEstimatedSizeMB(Number.isFinite(estimatedMB) ? estimatedMB : null)
+      } else {
+        setEstimatedSizeMB(null)
+      }
+
+      if (!isPlaying && frames.length > 0) {
+        drawImage(frames[0].imageType)
+        return
+      }
+
+      if (isPlaying) {
+        animate()
+      }
     })
 
     return () => {
@@ -406,13 +798,12 @@ export function BlinkAnimationTool() {
     previewReady,
     isPlaying,
     images,
-    selectedPattern,
-    blinkSpeed,
-    blinkDuration,
-    randomnessEnabled,
-    randomness,
-    loopMode,
-    maxLoops,
+    loopPattern,
+    animationLength,
+    useTwoImageMode,
+    fps,
+    compressionLevel,
+    imageQuality,
   ])
 
   const exportAsAPNG = async () => {
@@ -424,7 +815,6 @@ export function BlinkAnimationTool() {
     setExportProgress(5)
 
     try {
-      // Check if UPNG is loaded
       if (!window.UPNG) {
         throw new Error("UPNG.js is not loaded. Please refresh the page and try again.")
       }
@@ -432,17 +822,21 @@ export function BlinkAnimationTool() {
       console.log("UPNG.js is ready")
       setExportProgress(10)
 
-      // Create temporary canvas for frame capture
       const tempCanvas = document.createElement("canvas")
       const tempCtx = tempCanvas.getContext("2d")
       if (!tempCtx) throw new Error("Failed to get canvas context")
 
-      // Load images
       const loadedImages: Record<string, HTMLImageElement> = {}
+      const resolvedImages: Record<"open" | "halfOpen" | "closed", string | null> = {
+        open: images.open,
+        halfOpen: useTwoImageMode ? images.open : images.halfOpen,
+        closed: images.closed,
+      }
       const imageKeys: Array<"open" | "halfOpen" | "closed"> = ["open", "halfOpen", "closed"]
+      const keysToLoad = imageKeys.filter((key) => resolvedImages[key])
 
       await Promise.all(
-        imageKeys.map(
+        keysToLoad.map(
           (key) =>
             new Promise<void>((resolve) => {
               const img = new Image()
@@ -452,7 +846,12 @@ export function BlinkAnimationTool() {
                 resolve()
               }
               img.onerror = () => resolve()
-              img.src = images[key]!
+              const src = resolvedImages[key]
+              if (src) {
+                img.src = src
+              } else {
+                resolve()
+              }
             })
         )
       )
@@ -460,133 +859,96 @@ export function BlinkAnimationTool() {
       console.log("Images loaded for export")
       setExportProgress(20)
 
-      // Set canvas size
-      const firstImg = loadedImages.open
-      if (!firstImg) throw new Error("First image not loaded")
+      const referenceImage =
+        loadedImages.open || loadedImages.halfOpen || loadedImages.closed
+      if (!referenceImage) {
+        throw new Error("参照画像が読み込めませんでした。")
+      }
 
-      tempCanvas.width = firstImg.width
-      tempCanvas.height = firstImg.height
+      tempCanvas.width = referenceImage.width
+      tempCanvas.height = referenceImage.height
 
       console.log(`Canvas size: ${tempCanvas.width}x${tempCanvas.height}`)
 
-      // Capture frames
-      const pattern = blinkPatterns[selectedPattern]
-      const frames: Blob[] = []
-      const delays: number[] = []
+      const settings: BlinkSettings = { fps, animationLength }
+      let frames = generateLoopPatternFrames(loopPattern, settings)
+      let currentColorCount = computeColorCount(imageQuality, compressionLevel)
+      let bestBuffer: ArrayBuffer | null = null
+      let bestSizeMB = Infinity
+      let sizeMB = Infinity
 
-      const totalBlinkDuration = pattern.timingRatio.reduce((sum, ratio) => sum + ratio, 0)
+      const getImageForFrame = (type: Frame["imageType"]) => {
+        if (type === "half") {
+          return loadedImages.halfOpen || loadedImages.open || loadedImages.closed || null
+        }
+        if (type === "open") {
+          return loadedImages.open || loadedImages.halfOpen || loadedImages.closed || null
+        }
+        return loadedImages.closed || loadedImages.open || loadedImages.halfOpen || null
+      }
 
-      for (let i = 0; i < pattern.sequence.length; i++) {
-        const imageKey = pattern.sequence[i]
-        const img = loadedImages[imageKey]
+      const encodeFrames = (framesToEncode: Frame[], colorCount: number) => {
+        const delays: number[] = []
+        const buffers: ArrayBuffer[] = []
 
-        if (img) {
-          // Clear and draw
+        framesToEncode.forEach((frame, index) => {
+          const img = getImageForFrame(frame.imageType)
+          if (!img) return
           tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
           tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
+          const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
+          buffers.push(imageData.data.buffer)
+          delays.push(Math.max(1, Math.round(frame.duration)))
+          setExportProgress(20 + (index / framesToEncode.length) * 40)
+        })
 
-          // Convert to blob
-          const blob = await new Promise<Blob>((resolve, reject) => {
-            tempCanvas.toBlob(
-              (blob) => {
-                if (blob) resolve(blob)
-                else reject(new Error("Failed to create blob"))
-              },
-              "image/png",
-              imageQuality / 100
-            )
-          })
+        if (!buffers.length) {
+          throw new Error("フレームの描画に失敗しました。")
+        }
 
-          frames.push(blob)
-
-          // Calculate delay for this frame
-          const frameDelay = Math.round((pattern.timingRatio[i] / totalBlinkDuration) * blinkDuration)
-          delays.push(frameDelay)
-
-          setExportProgress(20 + (i / pattern.sequence.length) * 60)
+        const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, colorCount, delays)
+        return {
+          buffer: encoded,
+          sizeMB: encoded.byteLength / (1024 * 1024),
         }
       }
 
-      console.log(`Captured ${frames.length} frames`)
-      console.log("Delays:", delays)
+      for (let attempt = 0; attempt < 8; attempt++) {
+        console.log(`Encoding attempt ${attempt + 1} with colorCount=${currentColorCount}`)
+        setExportProgress(20 + attempt * 8)
+        const { buffer, sizeMB: resultSize } = encodeFrames(frames, currentColorCount)
+        sizeMB = resultSize
 
-      // Add inter-blink delay (open eye state)
-      const openImg = loadedImages.open
-      tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
-      tempCtx.drawImage(openImg, 0, 0, tempCanvas.width, tempCanvas.height)
+        if (sizeMB < bestSizeMB) {
+          bestBuffer = buffer
+          bestSizeMB = sizeMB
+        }
 
-      const openBlob = await new Promise<Blob>((resolve, reject) => {
-        tempCanvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob)
-            else reject(new Error("Failed to create blob"))
-          },
-          "image/png",
-          imageQuality / 100
-        )
-      })
+        if (sizeMB <= SIZE_WARNING_THRESHOLD_MB) {
+          break
+        }
 
-      frames.push(openBlob)
-      delays.push(blinkSpeed)
+        if (currentColorCount > 32) {
+          currentColorCount = Math.max(16, Math.floor(currentColorCount / 2))
+          continue
+        }
 
-      setExportProgress(80)
-
-      // Convert blobs to ImageData
-      const imageDataArray: ImageData[] = []
-
-      for (const blob of frames) {
-        const img = new Image()
-        const url = URL.createObjectURL(blob)
-        img.src = url
-
-        await new Promise((resolve) => {
-          img.onload = resolve
-        })
-
-        const canvas = document.createElement("canvas")
-        canvas.width = tempCanvas.width
-        canvas.height = tempCanvas.height
-        const ctx = canvas.getContext("2d")!
-        ctx.drawImage(img, 0, 0)
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        imageDataArray.push(imageData)
-
-        URL.revokeObjectURL(url)
+        const reduced = reduceFrameDensity(frames)
+        if (reduced.length === frames.length) {
+          console.warn("Frame reduction could not reduce frame count further.")
+          break
+        }
+        frames = reduced
       }
 
-      console.log(`Prepared ${imageDataArray.length} ImageData objects`)
-      setExportProgress(85)
-
-      // APNG encoding using UPNG.encode
-      console.log("Attempting UPNG.encode...")
-
-      const buffers = imageDataArray.map((imageData) => imageData.data.buffer)
-
-      console.log(`Encoding ${buffers.length} frames...`)
-      console.log(`Frame size: ${tempCanvas.width}x${tempCanvas.height}`)
-      console.log(`Delays:`, delays)
-
-      const apngBuffer = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, 0, delays)
-
-      if (!apngBuffer) {
-        throw new Error("APNG generation failed - no buffer returned")
+      if (!bestBuffer) {
+        throw new Error("APNGの生成に失敗しました。")
       }
 
-      console.log(`APNG generated successfully: ${apngBuffer.byteLength} bytes`)
-
-      // Validate file size
-      const fileSizeKB = apngBuffer.byteLength / 1024
-      console.log(`Final file size: ${fileSizeKB.toFixed(2)} KB`)
-
-      if (fileSizeKB < 1) {
-        console.warn("Warning: File size is suspiciously small")
-      }
-
+      setEstimatedSizeMB(bestSizeMB)
       setExportProgress(95)
 
-      // Download
-      const blob = new Blob([apngBuffer], { type: "image/png" })
+      const blob = new Blob([bestBuffer], { type: "image/png" })
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = url
@@ -599,7 +961,13 @@ export function BlinkAnimationTool() {
       setExportProgress(100)
       console.log("Export completed successfully!")
 
-      alert(`エクスポートが完了しました！\nファイルサイズ: ${fileSizeKB.toFixed(2)} KB`)
+      const humanReadableSize =
+        bestSizeMB >= 1 ? `${bestSizeMB.toFixed(2)} MB` : `${(bestSizeMB * 1024).toFixed(2)} KB`
+      const message =
+        bestSizeMB > SIZE_WARNING_THRESHOLD_MB
+          ? `エクスポートが完了しましたが、ファイルサイズは ${humanReadableSize} です。\n必要に応じて瞬き回数や閉じ維持時間、FPS・品質を調整して再度試してみてください。`
+          : `エクスポートが完了しました！\nファイルサイズ: ${humanReadableSize}`
+      alert(message)
     } catch (error) {
       console.error("Export error:", error)
       throw error
@@ -632,7 +1000,12 @@ export function BlinkAnimationTool() {
     e.stopPropagation()
   }
 
-  const renderImageUpload = (type: ImageType, label: string, icon: React.ReactNode) => {
+  const renderImageUpload = (
+    type: ImageType,
+    label: string,
+    icon: React.ReactNode,
+    disabled = false
+  ) => {
     const image = images[type]
 
     return (
@@ -641,10 +1014,11 @@ export function BlinkAnimationTool() {
         <div
           className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
             image ? "border-gray-300 bg-gray-50" : "border-gray-300 hover:border-blue-400 hover:bg-blue-50"
-          }`}
-          onDrop={(e) => handleDrop(e, type)}
-          onDragOver={handleDragOver}
+          } ${disabled ? "opacity-50 pointer-events-none" : ""}`}
+          onDrop={disabled ? undefined : (e) => handleDrop(e, type)}
+          onDragOver={disabled ? undefined : handleDragOver}
           onClick={() => {
+            if (disabled) return
             const input = document.createElement("input")
             input.type = "file"
             input.accept = "image/*"
@@ -657,7 +1031,12 @@ export function BlinkAnimationTool() {
             input.click()
           }}
         >
-          {image ? (
+          {disabled ? (
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <div className="flex justify-center text-gray-300">{icon}</div>
+              <p>2枚モードでは不要です</p>
+            </div>
+          ) : image ? (
             <div className="space-y-2">
               <img src={image} alt={label} className="w-full h-32 object-contain mx-auto" />
               <Button size="sm" variant="outline" onClick={(e) => {
@@ -700,17 +1079,52 @@ export function BlinkAnimationTool() {
             <CardContent>
               <div className="space-y-4 text-sm text-gray-600">
                 <p>
-                  このツールは、3枚の画像（開いた目、半開き、閉じた目）から自然な瞬きアニメーションを生成します。
+                  このツールは、3枚のキャラクター画像（開いた目、半開き、閉じた目）から、自然な瞬きアニメーションを簡単に作成するツールです。
                 </p>
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">主な機能:</h4>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>6種類の感情プリセット（通常、眠い、驚き、集中、緊張、リラックス）</li>
-                    <li>6種類のまばたきパターン（通常、二重、眠そう、驚き、ゆっくり、素早い）</li>
-                    <li>ループ再生機能（1回、無限、指定回数）</li>
-                    <li>ランダム性設定で自然なまばたきを再現</li>
-                    <li>APNG、WebP、GIF形式でエクスポート</li>
-                  </ul>
+                  <h4 className="font-semibold text-gray-900 mb-2">作成の3ステップ</h4>
+
+                  <div className="space-y-3 mt-3">
+                    <div>
+                      <h5 className="font-medium text-gray-900">1. 画像のアップロード</h5>
+                      <p className="mt-1">
+                        「開いた目」「半開きの目」「閉じた目」の3種類の画像を用意します（開いた目、閉じた目の2種類でも可）。<br/>
+                        それぞれ指定されたエリアに画像をアップロード（またはドラッグ＆ドロップ）してください。<br/>
+                        <span className="text-xs">※2枚で作成する場合は、「2枚で生成する」にチェックを入れてください。</span>
+                      </p>
+                    </div>
+
+                    <div>
+                      <h5 className="font-medium text-gray-900">2. キャラクターの感情に沿った瞬きを選びます</h5>
+                      <p className="mt-1 mb-2">作成方法は2通りあります。</p>
+
+                      <div className="ml-3 space-y-2">
+                        <div>
+                          <p className="font-medium text-gray-800">方法1) 感情プリセットを選ぶ</p>
+                          <p className="text-sm">
+                            [ 平常 ] [ 穏やか ] [ ご機嫌 ] といった感情ボタンから、イメージに合うものをクリックしてください。<br/>
+                            キャラクターの感情に合わせた自然な瞬きが自動で設定されます。
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-gray-800">方法2) 詳細設定をカスタムする</p>
+                          <p className="text-sm">
+                            [ 詳細設定 ] ボタンから、より細かい調整が可能です。<br/>
+                            「ループパターン」機能で「瞬き回数」「速度」「待機時間」を自由にカスタムしたアニメーションを作成できます。
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h5 className="font-medium text-gray-900">3. プレビューとダウンロード</h5>
+                      <p className="mt-1">
+                        設定を変更すると、プレビューがリアルタイムで更新されます。<br/>
+                        「ダウンロード」ボタンを押して、完成したアニメーション画像を保存してください。
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -736,7 +1150,8 @@ export function BlinkAnimationTool() {
               <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path d="M12 14c-1.5 0-2.5-1-2.5-2s1-2 2.5-2 2.5 1 2.5 2-1 2-2.5 2z" strokeWidth="2" />
                 <path d="M2 12s3 5 10 5 10-5 10-5" strokeWidth="2" />
-              </svg>
+              </svg>,
+              useTwoImageMode
             )}
             {renderImageUpload("closed", "閉じた目",
               <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -744,185 +1159,35 @@ export function BlinkAnimationTool() {
               </svg>
             )}
           </div>
+          <div className="mt-4 space-y-1">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="two-image-mode"
+                checked={useTwoImageMode}
+                onCheckedChange={(checked) => {
+                  const value = checked === true
+                  setUseTwoImageMode(value)
+                }}
+              />
+              <Label htmlFor="two-image-mode" className="text-sm">
+                2枚で生成する（開いた目と閉じた目のみを使用）
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground ml-6">
+              半開き画像がない場合でも自然な瞬きを生成します。
+            </p>
+          </div>
         </CardContent>
       </Card>
 
-      {/* 設定セクション */}
+      {/* 設定とプレビューセクション（横並び） */}
       {previewReady && (
         <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 左側: プレビュー */}
           <Card>
             <CardHeader>
-              <CardTitle>2. アニメーション設定</CardTitle>
-              <CardDescription>感情プリセットまたはカスタム設定を選択</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* 感情プリセット */}
-              <div className="space-y-3">
-                <Label>感情プリセット</Label>
-                <Select value={selectedEmotion} onValueChange={setSelectedEmotion} disabled={useCustomSettings}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="プリセットを選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(emotionPresets).map(([key, preset]) => (
-                      <SelectItem key={key} value={key}>
-                        {preset.name} - {preset.description}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* カスタム設定スイッチ */}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="custom-settings"
-                  checked={useCustomSettings}
-                  onCheckedChange={(checked) => setUseCustomSettings(checked as boolean)}
-                />
-                <Label htmlFor="custom-settings" className="cursor-pointer">
-                  カスタム設定を使用
-                </Label>
-              </div>
-
-              {/* 詳細設定（カスタム時のみ） */}
-              {useCustomSettings && (
-                <Collapsible defaultOpen>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="outline" className="w-full">
-                      詳細設定
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-6 mt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* 左カラム */}
-                      <div className="space-y-4">
-                        {/* まばたきパターン */}
-                        <div className="space-y-2">
-                          <Label>まばたきパターン</Label>
-                          <Select value={selectedPattern} onValueChange={setSelectedPattern}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(blinkPatterns).map(([key, pattern]) => (
-                                <SelectItem key={key} value={key}>
-                                  {pattern.name} - {pattern.description}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* まばたき間隔 */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <Label>まばたき間隔</Label>
-                            <span className="text-sm text-gray-500">{blinkSpeed}ms</span>
-                          </div>
-                          <Slider
-                            value={[blinkSpeed]}
-                            onValueChange={([value]) => setBlinkSpeed(value)}
-                            min={500}
-                            max={5000}
-                            step={100}
-                          />
-                          <p className="text-xs text-gray-500">まばたきの間隔（500-5000ms）</p>
-                        </div>
-
-                        {/* まばたき速度 */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <Label>まばたき速度</Label>
-                            <span className="text-sm text-gray-500">{blinkDuration}ms</span>
-                          </div>
-                          <Slider
-                            value={[blinkDuration]}
-                            onValueChange={([value]) => setBlinkDuration(value)}
-                            min={100}
-                            max={1000}
-                            step={50}
-                          />
-                          <p className="text-xs text-gray-500">まばたきの速度（100-1000ms）</p>
-                        </div>
-                      </div>
-
-                      {/* 右カラム */}
-                      <div className="space-y-4">
-                        {/* ランダム性 */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label>ランダム性</Label>
-                            <Switch
-                              checked={randomnessEnabled}
-                              onCheckedChange={setRandomnessEnabled}
-                            />
-                          </div>
-                          {randomnessEnabled && (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-500">{randomness}%</span>
-                              </div>
-                              <Slider
-                                value={[randomness]}
-                                onValueChange={([value]) => setRandomness(value)}
-                                min={0}
-                                max={100}
-                                step={5}
-                              />
-                              <p className="text-xs text-gray-500">タイミングのランダム性（0-100%）</p>
-                            </>
-                          )}
-                        </div>
-
-                        {/* ループモード */}
-                        <div className="space-y-2">
-                          <Label>ループモード</Label>
-                          <RadioGroup value={loopMode} onValueChange={(value) => setLoopMode(value as LoopMode)}>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="once" id="once" />
-                              <Label htmlFor="once" className="cursor-pointer">1回のみ</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="infinite" id="infinite" />
-                              <Label htmlFor="infinite" className="cursor-pointer">無限ループ</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="count" id="count" />
-                              <Label htmlFor="count" className="cursor-pointer">指定回数</Label>
-                            </div>
-                          </RadioGroup>
-                        </div>
-
-                        {/* ループ回数 */}
-                        {loopMode === "count" && (
-                          <div className="space-y-2">
-                            <div className="flex justify-between">
-                              <Label>ループ回数</Label>
-                              <span className="text-sm text-gray-500">{maxLoops}回</span>
-                            </div>
-                            <Slider
-                              value={[maxLoops]}
-                              onValueChange={([value]) => setMaxLoops(value)}
-                              min={1}
-                              max={10}
-                              step={1}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* プレビューセクション */}
-          <Card>
-            <CardHeader>
-              <CardTitle>3. プレビュー</CardTitle>
+              <CardTitle>プレビュー</CardTitle>
               <CardDescription>アニメーションをプレビュー</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -947,7 +1212,6 @@ export function BlinkAnimationTool() {
                       }
                     } else {
                       setIsPlaying(true)
-                      loopCountRef.current = 0
                       currentFrameRef.current = 0
                     }
                   }}
@@ -955,7 +1219,7 @@ export function BlinkAnimationTool() {
                   {isPlaying ? (
                     <>
                       <Pause className="w-4 h-4 mr-2" />
-                      一時停止
+                      停止
                     </>
                   ) : (
                     <>
@@ -966,143 +1230,289 @@ export function BlinkAnimationTool() {
                 </Button>
               </div>
 
-              {/* 設定サマリー */}
-              <div className="bg-gray-50 p-4 rounded-lg text-sm">
-                <h4 className="font-semibold mb-2">現在の設定:</h4>
-                <ul className="space-y-1 text-gray-600">
-                  <li>パターン: {blinkPatterns[selectedPattern].name}</li>
-                  <li>間隔: {blinkSpeed}ms</li>
-                  <li>速度: {blinkDuration}ms</li>
-                  <li>ランダム性: {randomnessEnabled ? `${randomness}%` : "無効"}</li>
-                  <li>ループ: {loopMode === "once" ? "1回" : loopMode === "infinite" ? "無限" : `${maxLoops}回`}</li>
-                  {loopMode === "count" && (
-                    <li>進捗: {loopCountRef.current} / {maxLoops}回</li>
-                  )}
-                </ul>
+              <div className="border-t pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">3. アニメーションPNGをダウンロード</h4>
+                    <p className="text-xs text-muted-foreground">
+                      設定した瞬きパターンをAPNG形式で書き出します。
+                    </p>
+                  </div>
+                </div>
+
+                {estimatedSizeMB !== null && (
+                  <div
+                    className={`rounded-lg border px-3 py-3 text-sm ${
+                      estimatedSizeMB > SIZE_WARNING_THRESHOLD_MB
+                        ? "border-red-300 bg-red-50 text-red-700"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">想定ファイルサイズ</span>
+                      <span className="font-mono text-base">
+                        {estimatedSizeMB.toFixed(2)} MB
+                      </span>
+                    </div>
+                    {estimatedSizeMB > SIZE_WARNING_THRESHOLD_MB ? (
+                      <div className="mt-2 space-y-1 text-xs">
+                        <p className="font-semibold">⚠ 5MBを超えると読み込みが重くなる場合があります。</p>
+                        <ul className="list-disc list-inside space-y-0.5">
+                          <li>アニメーション長さや瞬き回数を短くする</li>
+                          <li>閉じた状態の維持やループ数を控えめにする</li>
+                          <li>フレームレートや画質スライダーを下げる</li>
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        実際のサイズは圧縮結果により多少前後します。
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label>圧縮レベル</Label>
+                      <span className="text-sm text-gray-500">{compressionLevel}</span>
+                    </div>
+                    <Slider
+                      value={[compressionLevel]}
+                      onValueChange={([value]) => setCompressionLevel(value)}
+                      min={1}
+                      max={10}
+                      step={1}
+                      disabled={isExporting}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label>画像品質</Label>
+                      <span className="text-sm text-gray-500">{imageQuality}%</span>
+                    </div>
+                    <Slider
+                      value={[imageQuality]}
+                      onValueChange={([value]) => setImageQuality(value)}
+                      min={30}
+                      max={100}
+                      step={5}
+                      disabled={isExporting}
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  disabled={isExporting || !previewReady}
+                  onClick={async () => {
+                    setIsExporting(true)
+                    setExportProgress(0)
+
+                    try {
+                      await exportAsAPNG()
+                    } catch (error) {
+                      console.error("Export error:", error)
+                      alert(`ダウンロード中にエラーが発生しました: ${error}`)
+                    } finally {
+                      setIsExporting(false)
+                      setExportProgress(0)
+                    }
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  {isExporting ? "生成中..." : "ダウンロード"}
+                </Button>
+
+                {isExporting && (
+                  <div className="space-y-2">
+                    <Progress value={exportProgress} />
+                    <p className="text-sm text-center text-gray-600">{exportProgress}%</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* エクスポートセクション */}
+          {/* 右側: アニメーション設定 */}
           <Card>
             <CardHeader>
-              <CardTitle>4. エクスポート</CardTitle>
-              <CardDescription>アニメーションをエクスポート</CardDescription>
+              <CardTitle>2. アニメーション設定</CardTitle>
+              <CardDescription>感情プリセットまたはカスタム設定を選択</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* ファイルサイズ予測 */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="font-medium">推定ファイルサイズ</span>
-                  <span className="text-gray-600">
-                    {(() => {
-                      const pattern = blinkPatterns[selectedPattern]
-                      const frameCount = Math.min(pattern.sequence.length * 4, 24)
-                      const loopFactor = loopMode === "once" ? 1 : loopMode === "count" ? maxLoops : 3
-                      const compressionFactor = 1 - compressionLevel / 10
-                      const qualityFactor = imageQuality / 100
-                      const formatFactor = exportFormat === "webp" ? 0.7 : exportFormat === "apng" ? 1.0 : 0.9
-
-                      // 仮の計算（実際の画像サイズに基づく）
-                      const baseSize = 50 // KB
-                      const estimatedSize = baseSize * frameCount * loopFactor * compressionFactor * qualityFactor * formatFactor
-
-                      return `${Math.round(estimatedSize)} KB`
-                    })()}
-                  </span>
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">感情プリセット</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedPresetId === CUSTOM_PRESET_ID
+                      ? "プリセットを基に編集したカスタム設定です。"
+                      : selectedPreset
+                      ? `${selectedPreset.emoji} ${selectedPreset.name}（${selectedPreset.description}）を適用中`
+                      : "プリセットを選択してください。"}
+                  </p>
                 </div>
-                <Progress value={30} className="h-2" />
-                <p className="text-xs text-gray-500">制限: 1024 KB (1 MB)</p>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {EMOTION_PRESETS.map((preset) => {
+                    const isSelected = selectedPresetId === preset.id
+                    return (
+                      <Button
+                        key={preset.id}
+                        variant={isSelected ? "default" : "outline"}
+                        onClick={() => handlePresetSelect(preset)}
+                        className="h-auto py-2 flex flex-col items-center text-center transition-transform hover:-translate-y-0.5 gap-1.5"
+                      >
+                        <span className="text-base">{preset.emoji}</span>
+                        <span className="text-sm font-medium leading-tight">{preset.name}</span>
+                        <span className="text-xs text-muted-foreground leading-tight">
+                          {preset.description}
+                        </span>
+                      </Button>
+                    )
+                  })}
+                </div>
+
+                {selectedPresetId === CUSTOM_PRESET_ID && (
+                  <p className="text-xs text-blue-600">
+                    カスタム設定を編集中です。プリセットに戻す場合は上のボタンから再選択してください。
+                  </p>
+                )}
               </div>
 
-              {/* フォーマット選択 */}
-              <Tabs value={exportFormat} onValueChange={(value) => setExportFormat(value as ExportFormat)}>
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="apng">APNG</TabsTrigger>
-                  <TabsTrigger value="webp">WebP</TabsTrigger>
-                  <TabsTrigger value="gif">GIF</TabsTrigger>
-                </TabsList>
-                <TabsContent value="apng" className="text-sm text-gray-600">
-                  透明度対応、高品質、Firefoxで確実に動作
-                </TabsContent>
-                <TabsContent value="webp" className="text-sm text-gray-600">
-                  ファイルサイズが小さい、モダンブラウザ対応
-                </TabsContent>
-                <TabsContent value="gif" className="text-sm text-gray-600">
-                  互換性が高い、256色制限
-                </TabsContent>
-              </Tabs>
 
-              {/* 圧縮設定 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label>圧縮レベル</Label>
-                    <span className="text-sm text-gray-500">{compressionLevel}</span>
+              {/* 詳細設定（カスタム時のみ） */}
+              <Collapsible defaultOpen={false}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="w-full">
+                    詳細設定
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-6 mt-4">
+                                    <div className="space-y-4">
+                    <div className="space-y-3">
+                      <Label>アニメーションの長さ: {animationLength}秒</Label>
+                      <Slider
+                        value={[animationLength]}
+                        onValueChange={(v) => setAnimationLength(v[0])}
+                        min={1}
+                        max={60}
+                        step={1}
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <Label>フレームレート: {fps}fps</Label>
+                      <Slider
+                        value={[fps]}
+                        onValueChange={(v) => setFps(v[0])}
+                        min={10}
+                        max={30}
+                        step={1}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <Label className="text-lg font-semibold">ループパターン設定</Label>
+                      <Button size="sm" variant="outline" onClick={addLoopStep}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        ループ追加
+                      </Button>
+                    </div>
+
+                    <div className="text-sm text-muted-foreground mb-3">
+                      設定したループパターンが、アニメーション長さ分繰り返されます。
+                    </div>
+
+                    {loopPattern.steps.map((step, index) => (
+                      <Card key={step.id} className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium">ループ {index + 1}</h4>
+                          {loopPattern.steps.length > 1 && (
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => removeLoopStep(step.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          {/* 瞬き回数 */}
+                          <div>
+                            <Label>瞬き回数: {step.blinkCount}回</Label>
+                            <Slider
+                              value={[step.blinkCount]}
+                              onValueChange={(v) => updateLoopStep(step.id, 'blinkCount', v[0])}
+                              min={1}
+                              max={10}
+                              step={1}
+                            />
+                          </div>
+
+                          {/* 瞬き速度 */}
+                          <div>
+                            <Label>瞬き速度: {step.blinkSpeed.toFixed(2)}秒</Label>
+                            <Slider
+                              value={[step.blinkSpeed]}
+                              onValueChange={(v) => updateLoopStep(step.id, 'blinkSpeed', v[0])}
+                              min={0.05}
+                              max={0.7}
+                              step={0.01}
+                            />
+                          </div>
+
+                          {/* 連続瞬きの間隔（2回以上の場合のみ表示） */}
+                          {step.blinkCount > 1 && (
+                            <div>
+                              <Label>瞬き間隔: {step.blinkInterval.toFixed(2)}秒</Label>
+                              <Slider
+                                value={[step.blinkInterval]}
+                                onValueChange={(v) => updateLoopStep(step.id, 'blinkInterval', v[0])}
+                                min={0.05}
+                                max={1.0}
+                                step={0.05}
+                              />
+                            </div>
+                          )}
+
+                          {/* 閉じた状態の維持時間 */}
+                          <div>
+                            <Label>閉じた状態の維持: {step.closedHold.toFixed(2)}秒</Label>
+                            <Slider
+                              value={[step.closedHold]}
+                              onValueChange={(v) => updateLoopStep(step.id, 'closedHold', v[0])}
+                              min={0}
+                              max={2}
+                              step={0.05}
+                            />
+                          </div>
+
+                          {/* 待機時間 */}
+                          <div>
+                            <Label>待機時間: {step.pauseDuration.toFixed(1)}秒</Label>
+                            <Slider
+                              value={[step.pauseDuration]}
+                              onValueChange={(v) => updateLoopStep(step.id, 'pauseDuration', v[0])}
+                              min={0.1}
+                              max={30}
+                              step={0.1}
+                            />
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
                   </div>
-                  <Slider
-                    value={[compressionLevel]}
-                    onValueChange={([value]) => setCompressionLevel(value)}
-                    min={1}
-                    max={10}
-                    step={1}
-                    disabled={isExporting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label>画像品質</Label>
-                    <span className="text-sm text-gray-500">{imageQuality}%</span>
-                  </div>
-                  <Slider
-                    value={[imageQuality]}
-                    onValueChange={([value]) => setImageQuality(value)}
-                    min={30}
-                    max={100}
-                    step={5}
-                    disabled={isExporting}
-                  />
-                </div>
-              </div>
-
-              {/* エクスポートボタン */}
-              <Button
-                className="w-full"
-                size="lg"
-                disabled={isExporting || !previewReady}
-                onClick={async () => {
-                  setIsExporting(true)
-                  setExportProgress(0)
-
-                  try {
-                    if (exportFormat === "apng") {
-                      await exportAsAPNG()
-                    } else {
-                      alert(`${exportFormat.toUpperCase()}形式のエクスポートは今後実装予定です`)
-                    }
-                  } catch (error) {
-                    console.error("Export error:", error)
-                    alert(`エクスポート中にエラーが発生しました: ${error}`)
-                  } finally {
-                    setIsExporting(false)
-                    setExportProgress(0)
-                  }
-                }}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                {isExporting ? "エクスポート中..." : "エクスポート"}
-              </Button>
-
-              {/* 進捗表示 */}
-              {isExporting && (
-                <div className="space-y-2">
-                  <Progress value={exportProgress} />
-                  <p className="text-sm text-center text-gray-600">{exportProgress}%</p>
-                </div>
-              )}
+                </CollapsibleContent>
+              </Collapsible>
             </CardContent>
           </Card>
+          </div>
         </>
       )}
     </div>
