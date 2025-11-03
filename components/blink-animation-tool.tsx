@@ -685,7 +685,7 @@ export function BlinkAnimationTool() {
 
     const resolvedImages: Record<"open" | "halfOpen" | "closed", string | null> = {
       open: images.open,
-      halfOpen: useTwoImageMode ? images.closed : images.halfOpen,
+      halfOpen: useTwoImageMode ? images.open : images.halfOpen,
       closed: images.closed,
     }
 
