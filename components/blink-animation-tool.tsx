@@ -829,6 +829,9 @@ export function BlinkAnimationTool() {
     console.log("Starting APNG export...")
     setExportProgress(5)
 
+    // 処理開始直後にrequestAnimationFrameで2フレーム待つ
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+
     try {
       if (!window.UPNG) {
         throw new Error("UPNG.js is not loaded. Please refresh the page and try again.")
@@ -872,7 +875,7 @@ export function BlinkAnimationTool() {
       )
 
       // メインスレッドを開放
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise(resolve => setTimeout(resolve, 10))
 
       console.log("Images loaded for export")
       setExportProgress(20)
@@ -908,6 +911,7 @@ export function BlinkAnimationTool() {
       const encodeFrames = async (framesToEncode: Frame[], colorCount: number) => {
         const delays: number[] = []
         const buffers: ArrayBuffer[] = []
+        let lastYieldTime = performance.now()
 
         for (let index = 0; index < framesToEncode.length; index++) {
           const frame = framesToEncode[index]
@@ -921,9 +925,13 @@ export function BlinkAnimationTool() {
           delays.push(Math.max(1, Math.round(frame.duration)))
           setExportProgress(20 + (index / framesToEncode.length) * 40)
 
-          // 5フレームごとにメインスレッドを開放
-          if (index % 5 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 0))
+          const currentTime = performance.now()
+          const elapsedTime = currentTime - lastYieldTime
+
+          // 3フレームごと、または30ms以上経過したらメインスレッドを開放
+          if (index % 3 === 0 || elapsedTime > 30) {
+            await new Promise(resolve => setTimeout(resolve, 10))
+            lastYieldTime = performance.now()
           }
         }
 
@@ -932,12 +940,12 @@ export function BlinkAnimationTool() {
         }
 
         // エンコード前にメインスレッドを開放
-        await new Promise(resolve => setTimeout(resolve, 0))
+        await new Promise(resolve => setTimeout(resolve, 10))
 
         const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, colorCount, delays)
 
         // エンコード後にもメインスレッドを開放
-        await new Promise(resolve => setTimeout(resolve, 0))
+        await new Promise(resolve => setTimeout(resolve, 10))
 
         return {
           buffer: encoded,
@@ -950,7 +958,7 @@ export function BlinkAnimationTool() {
         setExportProgress(20 + attempt * 8)
 
         // 各試行の前にメインスレッドを開放
-        await new Promise(resolve => setTimeout(resolve, 0))
+        await new Promise(resolve => setTimeout(resolve, 10))
 
         const { buffer, sizeMB: resultSize } = await encodeFrames(frames, currentColorCount)
         sizeMB = resultSize
@@ -985,7 +993,7 @@ export function BlinkAnimationTool() {
       setExportProgress(95)
 
       // ダウンロード前にメインスレッドを開放
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise(resolve => setTimeout(resolve, 10))
 
       const blob = new Blob([bestBuffer], { type: "image/png" })
       const url = URL.createObjectURL(blob)
@@ -1354,9 +1362,15 @@ export function BlinkAnimationTool() {
                 </Button>
 
                 {isExporting && (
-                  <div className="text-center text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="font-medium text-blue-900">画像の生成には時間がかかる場合があります</p>
-                    <p className="text-xs mt-1">そのまましばらくお待ちください。ブラウザが一時的に応答しなくなることがありますが、処理は続行されています。</p>
+                  <div className="text-center bg-amber-50 border-2 border-amber-400 rounded-lg p-4">
+                    <p className="text-lg font-bold text-amber-900 mb-2">⚠️ 生成処理中です</p>
+                    <p className="text-base font-semibold text-amber-800 mb-2">画像の生成には時間がかかります</p>
+                    <p className="text-sm text-amber-800 mb-3">そのまましばらくお待ちください</p>
+                    <div className="bg-amber-100 border border-amber-300 rounded p-3 mt-3">
+                      <p className="text-base font-bold text-amber-900 mb-1">「ページが応答しません」エラーが出た場合</p>
+                      <p className="text-sm font-semibold text-amber-800">必ず<span className="text-red-600 font-bold text-base">「待機」</span>を押してください</p>
+                      <p className="text-xs text-amber-700 mt-1">処理は続行されています。完了までお待ちください。</p>
+                    </div>
                   </div>
                 )}
 
