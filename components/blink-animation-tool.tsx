@@ -1109,17 +1109,17 @@ export function BlinkAnimationTool() {
       {/* ツール説明セクション */}
       <Collapsible open={showDescription} onOpenChange={setShowDescription}>
         <Card>
-          <CardHeader>
-            <CollapsibleTrigger asChild>
-              <div className="flex items-center justify-between cursor-pointer">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors py-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-500" />
-                  <CardTitle>ツールの使い方</CardTitle>
+                  <CardTitle className="text-base">ツールの使い方</CardTitle>
                 </div>
                 <ChevronDown className={`w-5 h-5 transition-transform ${showDescription ? "rotate-180" : ""}`} />
               </div>
-            </CollapsibleTrigger>
-          </CardHeader>
+            </CardHeader>
+          </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent>
               <div className="space-y-4 text-sm text-gray-600">
@@ -1164,9 +1164,11 @@ export function BlinkAnimationTool() {
                       <p>ココフォリア等のTRPGツールでは、アップロードできる画像サイズに制限があります。</p>
                       <p className="font-medium text-gray-900">対処法：</p>
                       <ul className="list-disc pl-4 space-y-1">
+                        <li>アップロードする画像サイズを圧縮する</li>
                         <li>「詳細設定」でアニメーション長さを短くする</li>
                         <li>フレームレートを下げる（24fps→12fps等）</li>
                         <li>画質を下げる（85→70等）</li>
+                        <li>作成されたAPNGを圧縮する</li>
                         <li>
                           <a
                             href="https://minify.ccfolia.com/"
