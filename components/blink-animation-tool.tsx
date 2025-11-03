@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
-import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Play, Pause, Info, ChevronDown, Download, Plus, Trash2, Loader2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -872,6 +871,9 @@ export function BlinkAnimationTool() {
         )
       )
 
+      // メインスレッドを開放
+      await new Promise(resolve => setTimeout(resolve, 0))
+
       console.log("Images loaded for export")
       setExportProgress(20)
 
@@ -903,24 +905,34 @@ export function BlinkAnimationTool() {
         return loadedImages.closed || loadedImages.open || loadedImages.halfOpen || null
       }
 
-      const encodeFrames = (framesToEncode: Frame[], colorCount: number) => {
+      const encodeFrames = async (framesToEncode: Frame[], colorCount: number) => {
         const delays: number[] = []
         const buffers: ArrayBuffer[] = []
 
-        framesToEncode.forEach((frame, index) => {
+        for (let index = 0; index < framesToEncode.length; index++) {
+          const frame = framesToEncode[index]
           const img = getImageForFrame(frame.imageType)
-          if (!img) return
+          if (!img) continue
+
           tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
           tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
           const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
           buffers.push(imageData.data.buffer)
           delays.push(Math.max(1, Math.round(frame.duration)))
           setExportProgress(20 + (index / framesToEncode.length) * 40)
-        })
+
+          // 10フレームごとにメインスレッドを開放
+          if (index % 10 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0))
+          }
+        }
 
         if (!buffers.length) {
           throw new Error("フレームの描画に失敗しました。")
         }
+
+        // エンコード前にメインスレッドを開放
+        await new Promise(resolve => setTimeout(resolve, 0))
 
         const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, colorCount, delays)
         return {
@@ -932,7 +944,11 @@ export function BlinkAnimationTool() {
       for (let attempt = 0; attempt < 8; attempt++) {
         console.log(`Encoding attempt ${attempt + 1} with colorCount=${currentColorCount}`)
         setExportProgress(20 + attempt * 8)
-        const { buffer, sizeMB: resultSize } = encodeFrames(frames, currentColorCount)
+
+        // 各試行の前にメインスレッドを開放
+        await new Promise(resolve => setTimeout(resolve, 0))
+
+        const { buffer, sizeMB: resultSize } = await encodeFrames(frames, currentColorCount)
         sizeMB = resultSize
 
         if (sizeMB < bestSizeMB) {
@@ -963,6 +979,9 @@ export function BlinkAnimationTool() {
 
       setEstimatedSizeMB(bestSizeMB)
       setExportProgress(95)
+
+      // ダウンロード前にメインスレッドを開放
+      await new Promise(resolve => setTimeout(resolve, 0))
 
       const blob = new Blob([bestBuffer], { type: "image/png" })
       const url = URL.createObjectURL(blob)
@@ -1329,13 +1348,6 @@ export function BlinkAnimationTool() {
                     </>
                   )}
                 </Button>
-
-                {isExporting && (
-                  <div className="space-y-2">
-                    <Progress value={exportProgress} />
-                    <p className="text-sm text-center text-gray-600">{exportProgress}%</p>
-                  </div>
-                )}
 
                 {showPostDownloadMessage && downloadedFileSizeMB !== null && (
                   <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
