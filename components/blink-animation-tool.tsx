@@ -1362,15 +1362,10 @@ export function BlinkAnimationTool() {
                 </Button>
 
                 {isExporting && (
-                  <div className="text-center bg-amber-50 border-2 border-amber-400 rounded-lg p-4">
-                    <p className="text-lg font-bold text-amber-900 mb-2">⚠️ 生成処理中です</p>
-                    <p className="text-base font-semibold text-amber-800 mb-2">画像の生成には時間がかかります</p>
-                    <p className="text-sm text-amber-800 mb-3">そのまましばらくお待ちください</p>
-                    <div className="bg-amber-100 border border-amber-300 rounded p-3 mt-3">
-                      <p className="text-base font-bold text-amber-900 mb-1">「ページが応答しません」エラーが出た場合</p>
-                      <p className="text-sm font-semibold text-amber-800">必ず<span className="text-red-600 font-bold text-base">「待機」</span>を押してください</p>
-                      <p className="text-xs text-amber-700 mt-1">処理は続行されています。完了までお待ちください。</p>
-                    </div>
+                  <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-3">
+                    <p className="text-sm font-bold text-amber-900 text-center">
+                      ⚠️ 生成中です（時間がかかります）・「ページが応答しません」が出たら必ず<span className="text-red-600 font-bold">「待機」</span>を押してください
+                    </p>
                   </div>
                 )}
 
