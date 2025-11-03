@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Play, Pause, Info, ChevronDown, Download, Plus, Trash2, Loader2 } from "lucide-react"
+import { Play, Pause, ChevronDown, Download, Plus, Trash2, Loader2 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 
 // UPNG type definition
@@ -499,7 +499,6 @@ export function BlinkAnimationTool() {
   const [isExporting, setIsExporting] = useState(false)
   const [compressionLevel, setCompressionLevel] = useState(5)
   const [imageQuality, setImageQuality] = useState(85)
-  const [showDescription, setShowDescription] = useState(false)
   const [animationLength, setAnimationLength] = useState(10)
   const [useTwoImageMode, setUseTwoImageMode] = useState(false)
   const [fps, setFps] = useState(24)
@@ -893,6 +892,30 @@ export function BlinkAnimationTool() {
 
       const settings: BlinkSettings = { fps, animationLength }
       let frames = generateLoopPatternFrames(loopPattern, settings)
+
+      // メモリ使用量の推定とフレーム数の制限
+      const pixelsPerFrame = tempCanvas.width * tempCanvas.height
+      const bytesPerFrame = pixelsPerFrame * 4 // RGBA
+      const maxMemoryMB = 800 // 最大メモリ使用量（MB）
+      const maxFrames = Math.floor((maxMemoryMB * 1024 * 1024) / bytesPerFrame)
+
+      console.log(`Initial frames: ${frames.length}, Max safe frames: ${maxFrames}`)
+
+      // フレーム数が多すぎる場合は積極的に削減
+      while (frames.length > maxFrames && frames.length > 10) {
+        frames = reduceFrameDensity(frames)
+        console.log(`Reduced frames to: ${frames.length}`)
+      }
+
+      // それでもフレーム数が多すぎる場合はエラー
+      if (frames.length > maxFrames) {
+        throw new Error(
+          `画像サイズが大きすぎるため生成できません。\n` +
+          `推奨：画像サイズを縮小するか、アニメーション長さを ${Math.floor(animationLength / 2)} 秒以下に設定してください。\n` +
+          `現在：${tempCanvas.width}×${tempCanvas.height}px、${frames.length}フレーム`
+        )
+      }
+
       let currentColorCount = computeColorCount(imageQuality, compressionLevel)
       let bestBuffer: ArrayBuffer | null = null
       let bestSizeMB = Infinity
@@ -913,43 +936,59 @@ export function BlinkAnimationTool() {
         const buffers: ArrayBuffer[] = []
         let lastYieldTime = performance.now()
 
-        for (let index = 0; index < framesToEncode.length; index++) {
-          const frame = framesToEncode[index]
-          const img = getImageForFrame(frame.imageType)
-          if (!img) continue
+        try {
+          for (let index = 0; index < framesToEncode.length; index++) {
+            const frame = framesToEncode[index]
+            const img = getImageForFrame(frame.imageType)
+            if (!img) continue
 
-          tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
-          tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
-          const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
-          buffers.push(imageData.data.buffer)
-          delays.push(Math.max(1, Math.round(frame.duration)))
-          setExportProgress(20 + (index / framesToEncode.length) * 40)
+            tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
+            tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
+            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
+            buffers.push(imageData.data.buffer)
+            delays.push(Math.max(1, Math.round(frame.duration)))
+            setExportProgress(20 + (index / framesToEncode.length) * 40)
 
-          const currentTime = performance.now()
-          const elapsedTime = currentTime - lastYieldTime
+            const currentTime = performance.now()
+            const elapsedTime = currentTime - lastYieldTime
 
-          // 3フレームごと、または30ms以上経過したらメインスレッドを開放
-          if (index % 3 === 0 || elapsedTime > 30) {
-            await new Promise(resolve => setTimeout(resolve, 10))
-            lastYieldTime = performance.now()
+            // 3フレームごと、または30ms以上経過したらメインスレッドを開放
+            if (index % 3 === 0 || elapsedTime > 30) {
+              await new Promise(resolve => setTimeout(resolve, 10))
+              lastYieldTime = performance.now()
+            }
           }
-        }
 
-        if (!buffers.length) {
-          throw new Error("フレームの描画に失敗しました。")
-        }
+          if (!buffers.length) {
+            throw new Error("フレームの描画に失敗しました。")
+          }
 
-        // エンコード前にメインスレッドを開放
-        await new Promise(resolve => setTimeout(resolve, 10))
+          // エンコード前にメインスレッドを開放
+          await new Promise(resolve => setTimeout(resolve, 10))
 
-        const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, colorCount, delays)
+          const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, colorCount, delays)
 
-        // エンコード後にもメインスレッドを開放
-        await new Promise(resolve => setTimeout(resolve, 10))
+          // エンコード後にもメインスレッドを開放
+          await new Promise(resolve => setTimeout(resolve, 10))
 
-        return {
-          buffer: encoded,
-          sizeMB: encoded.byteLength / (1024 * 1024),
+          return {
+            buffer: encoded,
+            sizeMB: encoded.byteLength / (1024 * 1024),
+          }
+        } catch (error) {
+          // メモリ不足エラーの場合は詳細なメッセージを提供
+          if (error instanceof RangeError && error.message.includes("allocation")) {
+            const estimatedMemoryMB = (framesToEncode.length * tempCanvas.width * tempCanvas.height * 4) / (1024 * 1024)
+            throw new Error(
+              `メモリ不足のため生成できません。\n\n` +
+              `推奨される対処法：\n` +
+              `1. 画像サイズを縮小する（現在：${tempCanvas.width}×${tempCanvas.height}px）\n` +
+              `2. アニメーション長さを短くする（現在：${animationLength}秒）\n` +
+              `3. フレームレートを下げる（現在：${fps}fps）\n\n` +
+              `必要メモリ：約${estimatedMemoryMB.toFixed(0)}MB`
+            )
+          }
+          throw error
         }
       }
 
@@ -1106,90 +1145,6 @@ export function BlinkAnimationTool() {
 
   return (
     <div className="space-y-6">
-      {/* ツール説明セクション */}
-      <Collapsible open={showDescription} onOpenChange={setShowDescription}>
-        <Card>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Info className="w-5 h-5 text-blue-500" />
-                  <CardTitle className="text-base">ツールの使い方</CardTitle>
-                </div>
-                <ChevronDown className={`w-5 h-5 transition-transform ${showDescription ? "rotate-180" : ""}`} />
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent>
-              <div className="space-y-4 text-sm text-gray-600">
-                <p className="font-medium text-gray-900">
-                  3枚の画像から自然な瞬きアニメーション（APNG形式）を作成できます
-                </p>
-
-                <div className="space-y-2.5">
-                  <div className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">1</span>
-                    <div>
-                      <p className="font-medium text-gray-900">画像をアップロード</p>
-                      <p className="text-xs mt-0.5">開いた目・半開き・閉じた目の3枚（または開いた目・閉じた目の2枚）</p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">2</span>
-                    <div>
-                      <p className="font-medium text-gray-900">感情プリセットを選択</p>
-                      <p className="text-xs mt-0.5">平常・眠気・驚きなど12種類から選択、または詳細設定でカスタマイズ</p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">3</span>
-                    <div>
-                      <p className="font-medium text-gray-900">ダウンロード</p>
-                      <p className="text-xs mt-0.5">プレビューで確認後、ボタンを押してダウンロード</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t pt-3 mt-4">
-                  <details className="group">
-                    <summary className="cursor-pointer font-medium text-gray-900 text-sm hover:text-blue-600 transition-colors list-none flex items-center gap-2">
-                      <span className="text-blue-500">💡</span>
-                      <span>ファイルサイズが5MBを超える場合</span>
-                      <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
-                    </summary>
-                    <div className="mt-2 text-xs space-y-1.5 pl-6">
-                      <p>ココフォリア等のTRPGツールでは、アップロードできる画像サイズに制限があります。</p>
-                      <p className="font-medium text-gray-900">対処法：</p>
-                      <ul className="list-disc pl-4 space-y-1">
-                        <li>アップロードする画像サイズを圧縮する</li>
-                        <li>「詳細設定」でアニメーション長さを短くする</li>
-                        <li>フレームレートを下げる（24fps→12fps等）</li>
-                        <li>画質を下げる（85→70等）</li>
-                        <li>作成されたAPNGを圧縮する</li>
-                        <li>
-                          <a
-                            href="https://minify.ccfolia.com/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline font-medium"
-                          >
-                            ココフォリアの圧縮ツール
-                          </a>
-                          を使用する
-                        </li>
-                      </ul>
-                    </div>
-                  </details>
-                </div>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
       {/* 画像アップロードセクション */}
       <Card>
         <CardHeader>
