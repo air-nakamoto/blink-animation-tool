@@ -921,8 +921,8 @@ export function BlinkAnimationTool() {
           delays.push(Math.max(1, Math.round(frame.duration)))
           setExportProgress(20 + (index / framesToEncode.length) * 40)
 
-          // 10フレームごとにメインスレッドを開放
-          if (index % 10 === 0) {
+          // 5フレームごとにメインスレッドを開放
+          if (index % 5 === 0) {
             await new Promise(resolve => setTimeout(resolve, 0))
           }
         }
@@ -935,6 +935,10 @@ export function BlinkAnimationTool() {
         await new Promise(resolve => setTimeout(resolve, 0))
 
         const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, colorCount, delays)
+
+        // エンコード後にもメインスレッドを開放
+        await new Promise(resolve => setTimeout(resolve, 0))
+
         return {
           buffer: encoded,
           sizeMB: encoded.byteLength / (1024 * 1024),
@@ -1348,6 +1352,13 @@ export function BlinkAnimationTool() {
                     </>
                   )}
                 </Button>
+
+                {isExporting && (
+                  <div className="text-center text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="font-medium text-blue-900">画像の生成には時間がかかる場合があります</p>
+                    <p className="text-xs mt-1">そのまましばらくお待ちください。ブラウザが一時的に応答しなくなることがありますが、処理は続行されています。</p>
+                  </div>
+                )}
 
                 {showPostDownloadMessage && downloadedFileSizeMB !== null && (
                   <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
