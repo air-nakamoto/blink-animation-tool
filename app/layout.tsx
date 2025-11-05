@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: '瞬きアニメーションPNG作成ツール',
   description: '3枚の画像から自然な瞬きアニメーションを生成。完全無料・登録不要。TRPGの立ち絵や、ゲーム制作などに素材に活用いただけます。',
+  icons: {
+    icon: '/favicon.ico',
+  },
   openGraph: {
     title: '瞬きアニメーションPNG作成ツール',
     description: '3枚の画像から自然な瞬きアニメーションを生成。完全無料・登録不要。TRPGの立ち絵や、ゲーム制作などに素材に活用いただけます。',
