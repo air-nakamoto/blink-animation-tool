@@ -6,8 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Play, Pause, ChevronDown, Download, Plus, Trash2, Loader2 } from "lucide-react"
+import { Play, Pause, ChevronDown, Download, Plus, Trash2, Loader2, HelpCircle, ExternalLink } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import Link from "next/link"
 
 // UPNG type definition
 declare global {
@@ -1146,13 +1155,102 @@ export function BlinkAnimationTool() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 画像アップロードセクション */}
-      <Card>
-        <CardHeader>
-          <CardTitle>1. 画像をアップロード</CardTitle>
-          <CardDescription>3枚の画像（開いた目、半開き、閉じた目）をアップロードしてください</CardDescription>
-        </CardHeader>
+      <div className="space-y-2">
+        <div className="flex justify-end">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-700 px-[100px]">
+                <HelpCircle className="w-4 h-4" />
+                使い方
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>ツールの使い方</DialogTitle>
+                <DialogDescription>
+                  3枚の画像から自然な瞬きアニメーション（APNG形式）を作成できます
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 text-sm text-gray-600">
+                <div className="space-y-2.5">
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">1</span>
+                    <div>
+                      <p className="font-medium text-gray-900">画像をアップロード</p>
+                      <p className="text-xs mt-0.5">開いた目・半開き・閉じた目の3枚（または開いた目・閉じた目の2枚）</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">2</span>
+                    <div>
+                      <p className="font-medium text-gray-900">感情プリセットを選択</p>
+                      <p className="text-xs mt-0.5">平常・眠気・驚きなど12種類から選択、または詳細設定でカスタマイズ</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">3</span>
+                    <div>
+                      <p className="font-medium text-gray-900">ダウンロード</p>
+                      <p className="text-xs mt-0.5">プレビューで確認後、ボタンを押してダウンロード</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t pt-3 mt-4">
+                  <details className="group">
+                    <summary className="cursor-pointer font-medium text-gray-900 text-sm hover:text-blue-600 transition-colors list-none flex items-center gap-2">
+                      <span className="text-blue-500">💡</span>
+                      <span>ファイルサイズが5MBを超える場合</span>
+                      <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="mt-2 text-xs space-y-1.5 pl-6">
+                      <p>ココフォリア等のTRPGツールでは、アップロードできる画像サイズに制限があります。</p>
+                      <p className="font-medium text-gray-900">対処法：</p>
+                      <ul className="list-disc pl-4 space-y-1">
+                        <li>アップロードする画像サイズを圧縮する</li>
+                        <li>「詳細設定」でアニメーション長さを短くする</li>
+                        <li>フレームレートを下げる（24fps→12fps等）</li>
+                        <li>画質を下げる（85→70等）</li>
+                        <li>作成されたAPNGを圧縮する</li>
+                        <li>
+                          <a
+                            href="https://minify.ccfolia.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline font-medium"
+                          >
+                            ココフォリアの圧縮ツール
+                          </a>
+                          を使用する
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <Link
+                    href="/manual"
+                    target="_blank"
+                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline font-medium text-sm"
+                  >
+                    📖 さらに詳しい使い方マニュアルはこちら
+                    <ExternalLink className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>1. 画像をアップロード</CardTitle>
+            <CardDescription>3枚の画像（開いた目、半開き、閉じた目）をアップロードしてください</CardDescription>
+          </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {renderImageUpload("open", "開いた目",
@@ -1163,8 +1261,9 @@ export function BlinkAnimationTool() {
             )}
             {renderImageUpload("halfOpen", "半開き",
               <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M12 14c-1.5 0-2.5-1-2.5-2s1-2 2.5-2 2.5 1 2.5 2-1 2-2.5 2z" strokeWidth="2" />
-                <path d="M2 12s3 5 10 5 10-5 10-5" strokeWidth="2" />
+                <path d="M3 10.5Q12 8.5 21 10.5" strokeWidth="2" strokeLinecap="round" />
+                <path d="M3 13.5Q12 15.5 21 13.5" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="12" cy="12" r="3" strokeWidth="2" />
               </svg>,
               useTwoImageMode
             )}
@@ -1174,7 +1273,7 @@ export function BlinkAnimationTool() {
               </svg>
             )}
           </div>
-          <div className="mt-4 space-y-1">
+          <div className="mt-4 pt-4 border-t border-dashed border-gray-300 space-y-1">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="two-image-mode"
@@ -1193,7 +1292,8 @@ export function BlinkAnimationTool() {
             </p>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
 
       {/* 設定とプレビューセクション（横並び） */}
       {previewReady && (
