@@ -150,7 +150,7 @@ export default function ManualPage() {
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <h4 className="font-semibold text-gray-800 mb-3">実際の画面</h4>
                       <Image
-                        src="/manual/step2-preset.png"
+                        src="/manual/step2-preset12.png"
                         alt="感情プリセット選択画面"
                         width={1200}
                         height={800}
