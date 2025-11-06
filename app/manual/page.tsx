@@ -47,7 +47,7 @@ export default function ManualPage() {
                 </li>
                 <li>
                   <a href="#faq" className="hover:underline">
-                    よくある質問
+                    FAQ
                   </a>
                 </li>
                 <li>
@@ -191,12 +191,8 @@ export default function ManualPage() {
             <section id="advanced-settings" className="space-y-3">
               <h2 className="text-2xl font-bold text-gray-900 border-b pb-2">詳細設定</h2>
 
-              <p className="text-gray-700 mb-2">
-                さらに細かく瞬きのタイミングを設定したい場合は、詳細設定から調整することができます。
-              </p>
-
               <p className="text-gray-700">
-                「詳細設定」を開くと、より細かくアニメーションをカスタマイズできます：
+                さらに細かく瞬きのタイミングを設定したい場合は、「詳細設定」を開くことでアニメーションをカスタマイズできます：
               </p>
 
               <div className="space-y-3">
@@ -312,9 +308,38 @@ export default function ManualPage() {
             </section>
 
             <section id="faq" className="space-y-3">
-              <h2 className="text-2xl font-bold text-gray-900 border-b pb-2">よくある質問</h2>
+              <h2 className="text-2xl font-bold text-gray-900 border-b pb-2">FAQ</h2>
 
               <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold text-gray-800">Q. ひとまず使い方を試したいが、画像がない</h4>
+                  <div className="text-gray-700 text-sm">
+                    <p className="mb-2">
+                      A. サンプル画像3枚（目を開いた状態・半開き・目を閉じた状態）をダウンロードし、お試しいただくことができます。
+                    </p>
+                    <ul className="list-disc pl-6 space-y-1">
+                      <li>
+                        <a
+                          href="/samples/sample-images-bust.zip"
+                          download
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          サンプル画像セットをダウンロード（バストアップVer）
+                        </a>
+                      </li>
+                      <li>
+                        <a
+                          href="/samples/sample-images-fullbody.zip"
+                          download
+                          className="text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          サンプル画像セットをダウンロード（全身Ver）
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
                 <div>
                   <h4 className="font-semibold text-gray-800">Q. 半開きの画像がない場合はどうすればいいですか？</h4>
                   <p className="text-gray-700 text-sm">

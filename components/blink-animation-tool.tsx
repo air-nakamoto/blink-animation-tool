@@ -1249,7 +1249,33 @@ export function BlinkAnimationTool() {
         <Card>
           <CardHeader>
             <CardTitle>1. 画像をアップロード</CardTitle>
-            <CardDescription>3枚の画像（開いた目、半開き、閉じた目）をアップロードしてください</CardDescription>
+            <CardDescription>
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-sm text-gray-600">
+                  3枚の画像（開いた目、半開き、閉じた目）をアップロードしてください
+                </p>
+                <button
+                  onClick={() => {
+                    const confirmed = confirm(
+                      "サンプル画像（バストアップ版・3枚セット）をダウンロードします\n\n" +
+                      "【内容】\n" +
+                      "・開いた目の画像\n" +
+                      "・半開きの画像\n" +
+                      "・閉じた目の画像\n" +
+                      "・README.txt\n\n" +
+                      "ZIP形式でダウンロードされます。\n" +
+                      "ダウンロードしますか？"
+                    );
+                    if (confirmed) {
+                      window.location.href = "/samples/sample-images-bust.zip";
+                    }
+                  }}
+                  className="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors whitespace-nowrap"
+                >
+                  💡 動作チェック用のサンプル画像
+                </button>
+              </div>
+            </CardDescription>
           </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1303,7 +1329,6 @@ export function BlinkAnimationTool() {
           <Card>
             <CardHeader>
               <CardTitle>プレビュー</CardTitle>
-              <CardDescription>アニメーションをプレビュー</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-center">
