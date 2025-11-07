@@ -355,6 +355,13 @@ export default function ManualPage() {
                 </div>
 
                 <div>
+                  <h4 className="font-semibold text-gray-800">Q. どのくらいのサイズの画像をアップロードすべきですか？</h4>
+                  <p className="text-gray-700 text-sm">
+                    A. 推奨サイズは縦横2000px以下、各画像5MB以下です。生成されるAPNGファイルは設定により変動しますが、目安として1〜10MBになります。大きすぎる場合は下記の「生成されたファイルが大きすぎます」を参照してください。
+                  </p>
+                </div>
+
+                <div>
                   <h4 className="font-semibold text-gray-800">Q. 生成されたファイルが大きすぎます</h4>
                   <p className="text-gray-700 text-sm">
                     A. 上記の「ファイルサイズの最適化」セクションを参照してください。特に元画像のサイズを小さくすることが最も効果的です。
