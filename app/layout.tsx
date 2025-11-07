@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: '瞬きアニメーションPNG作成ツール',
-    description: '3枚の画像から瞬きアニメーションPNGを生成。完全無料・登録不要。TRPGの立ち絵やゲーム素材に。',
+    description: '3枚の画像（開いた目・半開き・閉じた目）から瞬きアニメーションPNGが作れます。ブラウザだけで完結、登録も不要です。TRPGの立ち絵や、ゲーム制作の素材にお使いいただけます。',
     url: 'https://blink-animation-tool.vercel.app',
     siteName: '瞬きアニメーションツール',
     locale: 'ja_JP',
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: '瞬きアニメーションPNG作成ツール',
-    description: '3枚の画像から瞬きアニメーションPNGを生成。完全無料・登録不要。',
+    description: '3枚の画像（開いた目・半開き・閉じた目）から瞬きアニメーションPNGが作れます。ブラウザだけで完結、登録も不要です。TRPGの立ち絵や、ゲーム制作の素材にお使いいただけます。',
     images: ['/og-image.png'],
   },
 };
