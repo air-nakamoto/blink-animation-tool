@@ -1280,7 +1280,7 @@ export function BlinkAnimationTool() {
                       console.log("Download triggered");
                     }
                   }}
-                  className="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors whitespace-nowrap cursor-pointer border border-blue-300 hover:shadow-sm"
+                  className="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors whitespace-nowrap cursor-pointer hover:shadow-sm"
                   type="button"
                 >
                   💡 動作チェック用のサンプル画像

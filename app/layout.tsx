@@ -18,8 +18,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: '/og-image.png',
-        width: 1200,
-        height: 630,
+        width: 2604,
+        height: 1064,
         alt: '瞬きアニメーションツールのスクリーンショット',
       },
     ],
