@@ -1289,11 +1289,6 @@ export function BlinkAnimationTool() {
             </CardDescription>
           </CardHeader>
         <CardContent>
-          <div className="mb-3 px-1">
-            <p className="text-xs text-gray-500">
-              💡 推奨：縦横2000px以下、各画像5MB以下｜生成されるAPNGは設定により変動します（目安：1〜10MB）
-            </p>
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {renderImageUpload("open", "開いた目",
               <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1314,6 +1309,11 @@ export function BlinkAnimationTool() {
                 <path d="M2 12s3 3 10 3 10-3 10-3" strokeWidth="2" />
               </svg>
             )}
+          </div>
+          <div className="mt-3 px-1">
+            <p className="text-xs text-gray-500">
+              💡 推奨：縦横2000px以下、各画像5MB以下｜生成されるAPNGは設定により変動します（目安：1〜10MB）
+            </p>
           </div>
           <div className="mt-4 pt-4 border-t border-dashed border-gray-300 space-y-1">
             <div className="flex items-center gap-2">
