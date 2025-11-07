@@ -1255,7 +1255,9 @@ export function BlinkAnimationTool() {
                   3枚の画像（開いた目、半開き、閉じた目）をアップロードしてください
                 </p>
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log("Sample button clicked");
                     const confirmed = confirm(
                       "サンプル画像（バストアップ版・3枚セット）をダウンロードします\n\n" +
                       "【内容】\n" +
@@ -1266,11 +1268,20 @@ export function BlinkAnimationTool() {
                       "ZIP形式でダウンロードされます。\n" +
                       "ダウンロードしますか？"
                     );
+                    console.log("Confirm result:", confirmed);
                     if (confirmed) {
-                      window.location.href = "/samples/sample-images-bust.zip";
+                      console.log("Starting download...");
+                      const link = document.createElement('a');
+                      link.href = '/samples/sample-images-bust.zip';
+                      link.download = 'sample-images-bust.zip';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      console.log("Download triggered");
                     }
                   }}
-                  className="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors whitespace-nowrap"
+                  className="text-xs bg-blue-50 text-blue-700 px-4 py-2 rounded-full hover:bg-blue-100 transition-colors whitespace-nowrap cursor-pointer border border-blue-300 hover:shadow-sm"
+                  type="button"
                 >
                   💡 動作チェック用のサンプル画像
                 </button>
