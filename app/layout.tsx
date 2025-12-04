@@ -5,9 +5,7 @@ export const metadata: Metadata = {
   title: '瞬きアニメーションPNG作成ツール',
   description: '3枚の画像（開いた目・半開き・閉じた目）から瞬きアニメーションPNGが作れます。ブラウザだけで完結、登録も不要です。TRPGの立ち絵や、ゲーム制作の素材にお使いいただけます。',
   keywords: ['まばたきAPNG', 'TRPG', 'ココフォリア', '立ち絵', '瞬き', 'アニメーション', 'APNG'],
-  icons: {
-    icon: '/favicon.ico',
-  },
+
   openGraph: {
     title: '瞬きアニメーションPNG作成ツール',
     description: '3枚の画像（開いた目・半開き・閉じた目）から瞬きアニメーションPNGが作れます。\nブラウザだけで完結、登録も不要です。\nTRPGの立ち絵や、ゲーム制作の素材にお使いいただけます。',
@@ -17,9 +15,9 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/og-image.png',
-        width: 2604,
-        height: 1064,
+        url: '/og-image-v2.jpg',
+        width: 1024,
+        height: 537,
         alt: '瞬きアニメーションツールのスクリーンショット',
       },
     ],
@@ -28,7 +26,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: '瞬きアニメーションPNG作成ツール',
     description: '3枚の画像（開いた目・半開き・閉じた目）から瞬きアニメーションPNGが作れます。\nブラウザだけで完結、登録も不要です。\nTRPGの立ち絵や、ゲーム制作の素材にお使いいただけます。',
-    images: ['/og-image.png'],
+    images: ['/og-image-v2.jpg'],
   },
 };
 
