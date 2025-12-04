@@ -545,6 +545,7 @@ export function BlinkAnimationTool() {
   const upngLoadedRef = useRef(false)
   const presetSectionRef = useRef<HTMLDivElement>(null)
   const isExportingRef = useRef(false)
+  const hasScrolledToPresetRef = useRef(false)
   const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
   const [downloadedFileSizeMB, setDownloadedFileSizeMB] = useState<number | null>(null)
   const [showPostDownloadMessage, setShowPostDownloadMessage] = useState(false)
@@ -679,9 +680,10 @@ export function BlinkAnimationTool() {
     }
   }, [images, useTwoImageMode])
 
-  // Auto-scroll to preset section when preview is ready
+  // Auto-scroll to preset section when preview is ready (first time only)
   useEffect(() => {
-    if (previewReady && presetSectionRef.current) {
+    if (previewReady && presetSectionRef.current && !hasScrolledToPresetRef.current) {
+      hasScrolledToPresetRef.current = true
       presetSectionRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'start'
