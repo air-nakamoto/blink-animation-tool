@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import Link from "next/link"
+import { encodeAPNGWithWorker, isWorkerSupported } from "@/lib/apng-worker-utils"
 
 // UPNG type definition
 declare global {
@@ -927,10 +928,7 @@ export function BlinkAnimationTool() {
         )
       }
 
-      let currentColorCount = computeColorCount(imageQuality, compressionLevel)
-      let bestBuffer: ArrayBuffer | null = null
-      let bestSizeMB = Infinity
-      let sizeMB = Infinity
+      const currentColorCount = computeColorCount(imageQuality, compressionLevel)
 
       const getImageForFrame = (type: Frame["imageType"]) => {
         if (type === "half") {
@@ -942,103 +940,94 @@ export function BlinkAnimationTool() {
         return loadedImages.closed || loadedImages.open || loadedImages.halfOpen || null
       }
 
-      const encodeFrames = async (framesToEncode: Frame[], colorCount: number) => {
-        const delays: number[] = []
-        const buffers: ArrayBuffer[] = []
-        let lastYieldTime = performance.now()
+      // フレームバッファと遅延配列を準備（メインスレッドで実行）
+      console.log("Preparing frame buffers...")
+      setExportProgress(30)
 
+      const delays: number[] = []
+      const buffers: ArrayBuffer[] = []
+      let lastYieldTime = performance.now()
+
+      for (let index = 0; index < frames.length; index++) {
+        const frame = frames[index]
+        const img = getImageForFrame(frame.imageType)
+        if (!img) continue
+
+        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
+        tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
+
+        // バッファのコピーを作成（Transferable objects用）
+        buffers.push(imageData.data.buffer.slice(0))
+        delays.push(Math.max(1, Math.round(frame.duration)))
+
+        setExportProgress(30 + (index / frames.length) * 25)
+
+        const currentTime = performance.now()
+        const elapsedTime = currentTime - lastYieldTime
+
+        // 3フレームごと、または30ms以上経過したらメインスレッドを開放
+        if (index % 3 === 0 || elapsedTime > 30) {
+          await new Promise(resolve => setTimeout(resolve, 10))
+          lastYieldTime = performance.now()
+        }
+      }
+
+      if (!buffers.length) {
+        throw new Error("フレームの描画に失敗しました。")
+      }
+
+      console.log(`Frame buffers prepared: ${buffers.length} frames`)
+      setExportProgress(55)
+
+      // Web Worker を使用してエンコード
+      let result
+      const useWorker = isWorkerSupported()
+
+      if (useWorker) {
+        console.log("Using Web Worker for encoding...")
         try {
-          for (let index = 0; index < framesToEncode.length; index++) {
-            const frame = framesToEncode[index]
-            const img = getImageForFrame(frame.imageType)
-            if (!img) continue
-
-            tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
-            tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
-            buffers.push(imageData.data.buffer)
-            delays.push(Math.max(1, Math.round(frame.duration)))
-            setExportProgress(20 + (index / framesToEncode.length) * 40)
-
-            const currentTime = performance.now()
-            const elapsedTime = currentTime - lastYieldTime
-
-            // 3フレームごと、または30ms以上経過したらメインスレッドを開放
-            if (index % 3 === 0 || elapsedTime > 30) {
-              await new Promise(resolve => setTimeout(resolve, 10))
-              lastYieldTime = performance.now()
-            }
-          }
-
-          if (!buffers.length) {
-            throw new Error("フレームの描画に失敗しました。")
-          }
-
-          // エンコード前にメインスレッドを開放
-          await new Promise(resolve => setTimeout(resolve, 10))
-
-          const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, colorCount, delays)
-
-          // エンコード後にもメインスレッドを開放
-          await new Promise(resolve => setTimeout(resolve, 10))
-
-          return {
-            buffer: encoded,
-            sizeMB: encoded.byteLength / (1024 * 1024),
-          }
+          result = await encodeAPNGWithWorker({
+            buffers,
+            width: tempCanvas.width,
+            height: tempCanvas.height,
+            delays,
+            initialColorCount: currentColorCount,
+            targetSizeMB: SIZE_WARNING_THRESHOLD_MB,
+            maxAttempts: 8,
+            onProgress: (progress, message) => {
+              setExportProgress(progress)
+              if (message) {
+                console.log(`[Worker] ${message}`)
+              }
+            },
+          })
         } catch (error) {
-          // メモリ不足エラーの場合は詳細なメッセージを提供
-          if (error instanceof RangeError && error.message.includes("allocation")) {
-            const estimatedMemoryMB = (framesToEncode.length * tempCanvas.width * tempCanvas.height * 4) / (1024 * 1024)
-            throw new Error(
-              `メモリ不足のため生成できません。\n\n` +
-              `推奨される対処法：\n` +
-              `1. 画像サイズを縮小する（現在：${tempCanvas.width}×${tempCanvas.height}px）\n` +
-              `2. アニメーション長さを短くする（現在：${animationLength}秒）\n` +
-              `3. フレームレートを下げる（現在：${fps}fps）\n\n` +
-              `必要メモリ：約${estimatedMemoryMB.toFixed(0)}MB`
-            )
-          }
+          console.error("Worker encoding failed:", error)
           throw error
         }
+      } else {
+        // Web Worker がサポートされていない場合のフォールバック
+        console.log("Web Worker not supported, using main thread encoding...")
+        if (!window.UPNG) {
+          throw new Error("UPNG.js is not loaded")
+        }
+
+        setExportProgress(60)
+        const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, currentColorCount, delays)
+        result = {
+          buffer: encoded,
+          sizeMB: encoded.byteLength / (1024 * 1024),
+          attempts: 1,
+          finalColorCount: currentColorCount,
+        }
+        setExportProgress(90)
       }
 
-      for (let attempt = 0; attempt < 8; attempt++) {
-        console.log(`Encoding attempt ${attempt + 1} with colorCount=${currentColorCount}`)
-        setExportProgress(20 + attempt * 8)
+      const bestBuffer = result.buffer
+      const bestSizeMB = result.sizeMB
 
-        // 各試行の前にメインスレッドを開放
-        await new Promise(resolve => setTimeout(resolve, 10))
-
-        const { buffer, sizeMB: resultSize } = await encodeFrames(frames, currentColorCount)
-        sizeMB = resultSize
-
-        if (sizeMB < bestSizeMB) {
-          bestBuffer = buffer
-          bestSizeMB = sizeMB
-        }
-
-        if (sizeMB <= SIZE_WARNING_THRESHOLD_MB) {
-          break
-        }
-
-        if (currentColorCount > 32) {
-          currentColorCount = Math.max(16, Math.floor(currentColorCount / 2))
-          continue
-        }
-
-        const reduced = reduceFrameDensity(frames)
-        if (reduced.length === frames.length) {
-          console.warn("Frame reduction could not reduce frame count further.")
-          break
-        }
-        frames = reduced
-      }
-
-      if (!bestBuffer) {
-        throw new Error("APNGの生成に失敗しました。")
-      }
-
+      console.log(`Encoding completed: ${bestSizeMB.toFixed(2)}MB in ${result.attempts} attempts`)
       setEstimatedSizeMB(bestSizeMB)
       setExportProgress(95)
 
