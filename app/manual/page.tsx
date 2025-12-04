@@ -174,7 +174,7 @@ export default function ManualPage() {
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <h4 className="font-semibold text-gray-800 mb-3">実際の画面</h4>
                     <p className="text-sm text-gray-600 mb-3">
-                      ダウンロード中の画面（重要な警告メッセージが表示されます）：
+                      ダウンロード中の画面：
                     </p>
                     <Image
                       src="/manual/step3-download.png"
