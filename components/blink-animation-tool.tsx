@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Play, Pause, ChevronDown, Download, Plus, Trash2, Loader2, HelpCircle, ExternalLink } from "lucide-react"
+import { ChevronDown, Download, Plus, Trash2, Loader2, HelpCircle, ExternalLink } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -506,7 +506,7 @@ export function BlinkAnimationTool() {
   })
   const [previewReady, setPreviewReady] = useState(false)
 
-  const [isPlaying, setIsPlaying] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(true)
   const [exportProgress, setExportProgress] = useState(0)
   const [isExporting, setIsExporting] = useState(false)
   const [compressionLevel, setCompressionLevel] = useState(5)
@@ -1332,10 +1332,7 @@ export function BlinkAnimationTool() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 左側: プレビュー */}
           <Card>
-            <CardHeader>
-              <CardTitle>プレビュー</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-2 pt-6">
               <div className="flex justify-center">
                 <canvas
                   ref={canvasRef}
@@ -1344,38 +1341,7 @@ export function BlinkAnimationTool() {
                 />
               </div>
 
-              <div className="flex justify-center gap-4">
-                <Button
-                  onClick={() => {
-                    if (isPlaying) {
-                      setIsPlaying(false)
-                      if (animationRef.current) {
-                        cancelAnimationFrame(animationRef.current)
-                      }
-                      if (timeoutRef.current) {
-                        clearTimeout(timeoutRef.current)
-                      }
-                    } else {
-                      setIsPlaying(true)
-                      currentFrameRef.current = 0
-                    }
-                  }}
-                >
-                  {isPlaying ? (
-                    <>
-                      <Pause className="w-4 h-4 mr-2" />
-                      停止
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 mr-2" />
-                      再生
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              <div className="border-t pt-2 space-y-3">
+              <div className="border-t pt-2 mt-2 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900">3. アニメーションPNGをダウンロード</h4>
@@ -1419,7 +1385,7 @@ export function BlinkAnimationTool() {
                 </div>
 
                 <Button
-                  className="w-full"
+                  className="w-full py-6"
                   size="lg"
                   disabled={isExporting || !previewReady}
                   onClick={async () => {
