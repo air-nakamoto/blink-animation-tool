@@ -165,9 +165,9 @@ export default function ManualPage() {
                   <p className="text-gray-700 mb-2">
                     プレビューで動作を確認したら、「ダウンロード」ボタンを押してAPNG形式で保存できます。
                   </p>
-                  <div className="mt-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
-                    <p className="text-sm text-amber-900">
-                      ⚠️ <strong>注意：</strong> 生成には時間がかかる場合があります。「ページが応答しません」と表示されても、必ず「待機」を押してください。
+                  <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-900">
+                      💡 <strong>ヒント：</strong> エンコード中も画面は操作可能です。処理が完了するまでお待ちください（通常10秒〜1分程度）。
                     </p>
                   </div>
 
@@ -350,7 +350,7 @@ export default function ManualPage() {
                 <div>
                   <h4 className="font-semibold text-gray-800">Q. ダウンロードに時間がかかりすぎます</h4>
                   <p className="text-gray-700 text-sm">
-                    A. 画像サイズやアニメーション長さによっては数十秒〜数分かかる場合があります。「ページが応答しません」と表示されても「待機」を押して待ってください。
+                    A. 画像サイズやアニメーション長さによっては数十秒〜数分かかる場合があります。処理が完了するまでお待ちください。
                   </p>
                 </div>
 
@@ -405,7 +405,7 @@ export default function ManualPage() {
                 <div>
                   <h4 className="font-semibold text-gray-800">プライバシー</h4>
                   <p className="text-gray-700 text-sm">
-                    アップロードされた画像はブラウザ内でのみ処理され、外部に送信されることはありません。完全にオフラインでも動作します。
+                    アップロードされた画像はブラウザ内でのみ処理され、外部に送信されることはありません。
                   </p>
                 </div>
               </div>
