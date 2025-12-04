@@ -54,14 +54,30 @@ console.log('[Worker] Worker location:', self.location.href)
 // グローバルスコープに window を定義
 // importScripts で読み込まれるライブラリがグローバルな window を参照するため
 const globalScope = self as any
-globalScope.window = globalScope
-globalScope.document = {
-  createElement: () => ({}),
-  createElementNS: () => ({}),
+
+try {
+  // window は設定可能
+  globalScope.window = globalScope
+  console.log('[Worker] window polyfill applied')
+} catch (e) {
+  console.warn('[Worker] Could not set window:', e)
 }
-globalScope.navigator = {
-  userAgent: 'Worker',
+
+try {
+  // document はWorkerに存在しないので追加可能
+  if (typeof globalScope.document === 'undefined') {
+    globalScope.document = {
+      createElement: () => ({}),
+      createElementNS: () => ({}),
+    }
+    console.log('[Worker] document polyfill applied')
+  }
+} catch (e) {
+  console.warn('[Worker] Could not set document:', e)
 }
+
+// navigator は読み取り専用なので上書きしない（すでに存在する）
+console.log('[Worker] navigator already exists:', typeof globalScope.navigator)
 
 console.log('[Worker] Polyfills applied: window =', typeof globalScope.window)
 
