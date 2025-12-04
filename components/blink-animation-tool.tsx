@@ -543,9 +543,9 @@ export function BlinkAnimationTool() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const currentFrameRef = useRef(0)
   const upngLoadedRef = useRef(false)
-  const presetSectionRef = useRef<HTMLDivElement>(null)
+  const previewSectionRef = useRef<HTMLDivElement>(null)
   const isExportingRef = useRef(false)
-  const hasScrolledToPresetRef = useRef(false)
+  const hasScrolledToPreviewRef = useRef(false)
   const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
   const [downloadedFileSizeMB, setDownloadedFileSizeMB] = useState<number | null>(null)
   const [showPostDownloadMessage, setShowPostDownloadMessage] = useState(false)
@@ -680,11 +680,11 @@ export function BlinkAnimationTool() {
     }
   }, [images, useTwoImageMode])
 
-  // Auto-scroll to preset section when preview is ready (first time only)
+  // Auto-scroll to preview section when preview is ready (first time only)
   useEffect(() => {
-    if (previewReady && presetSectionRef.current && !hasScrolledToPresetRef.current) {
-      hasScrolledToPresetRef.current = true
-      presetSectionRef.current.scrollIntoView({
+    if (previewReady && previewSectionRef.current && !hasScrolledToPreviewRef.current) {
+      hasScrolledToPreviewRef.current = true
+      previewSectionRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'start'
       })
@@ -1345,7 +1345,7 @@ export function BlinkAnimationTool() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 左側: プレビュー */}
-          <Card>
+          <Card ref={previewSectionRef}>
             <CardHeader>
               <CardTitle>プレビュー</CardTitle>
             </CardHeader>
@@ -1484,7 +1484,7 @@ export function BlinkAnimationTool() {
           </Card>
 
           {/* 右側: アニメーション設定 */}
-          <Card ref={presetSectionRef}>
+          <Card>
             <CardHeader>
               <CardTitle>2. アニメーション設定</CardTitle>
               <CardDescription>感情プリセットまたはカスタム設定を選択</CardDescription>
