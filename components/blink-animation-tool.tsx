@@ -1335,7 +1335,7 @@ export function BlinkAnimationTool() {
             <CardHeader>
               <CardTitle>プレビュー</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2">
               <div className="flex justify-center">
                 <canvas
                   ref={canvasRef}
@@ -1375,7 +1375,7 @@ export function BlinkAnimationTool() {
                 </Button>
               </div>
 
-              <div className="border-t pt-4 space-y-4">
+              <div className="border-t pt-2 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900">3. アニメーションPNGをダウンロード</h4>
