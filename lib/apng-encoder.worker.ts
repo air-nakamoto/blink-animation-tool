@@ -50,6 +50,10 @@ function sendComplete(buffer: ArrayBuffer, sizeMB: number, attempts: number, fin
 console.log('[Worker] Initializing APNG encoder worker...')
 console.log('[Worker] Worker location:', self.location.href)
 
+// UPNG.js と pako.js が window オブジェクトを期待しているため、
+// Worker の self を window として定義（型エラー回避のため any を使用）
+;(self as any).window = self
+
 try {
   // 絶対URLを使用してスクリプトをロード
   const baseURL = self.location.origin
@@ -65,6 +69,12 @@ try {
   importScripts(upngURL)
 
   console.log('[Worker] Libraries loaded successfully')
+
+  // UPNG が正しく読み込まれたか確認
+  if (typeof UPNG === 'undefined') {
+    throw new Error('UPNG library not loaded')
+  }
+  console.log('[Worker] UPNG is available:', typeof UPNG)
 } catch (error) {
   console.error('[Worker] Failed to load libraries:', error)
   const errorMsg = `ライブラリの読み込みに失敗: ${error instanceof Error ? error.message : String(error)}`
