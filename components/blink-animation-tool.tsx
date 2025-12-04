@@ -544,6 +544,7 @@ export function BlinkAnimationTool() {
   const currentFrameRef = useRef(0)
   const upngLoadedRef = useRef(false)
   const presetSectionRef = useRef<HTMLDivElement>(null)
+  const isExportingRef = useRef(false)
   const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
   const [downloadedFileSizeMB, setDownloadedFileSizeMB] = useState<number | null>(null)
   const [showPostDownloadMessage, setShowPostDownloadMessage] = useState(false)
@@ -1403,6 +1404,12 @@ export function BlinkAnimationTool() {
                   size="lg"
                   disabled={isExporting || !previewReady}
                   onClick={async () => {
+                    // 既にエクスポート中の場合は早期リターン（連続クリック防止）
+                    if (isExportingRef.current) {
+                      return
+                    }
+
+                    isExportingRef.current = true
                     setIsExporting(true)
                     setExportProgress(0)
 
@@ -1412,6 +1419,7 @@ export function BlinkAnimationTool() {
                       console.error("Export error:", error)
                       alert(`ダウンロード中にエラーが発生しました: ${error}`)
                     } finally {
+                      isExportingRef.current = false
                       setIsExporting(false)
                       setExportProgress(0)
                     }
