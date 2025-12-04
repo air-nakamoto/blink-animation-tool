@@ -51,8 +51,19 @@ console.log('[Worker] Initializing APNG encoder worker...')
 console.log('[Worker] Worker location:', self.location.href)
 
 // UPNG.js と pako.js が window オブジェクトを期待しているため、
-// Worker の self を window として定義（型エラー回避のため any を使用）
-;(self as any).window = self
+// グローバルスコープに window を定義
+// importScripts で読み込まれるライブラリがグローバルな window を参照するため
+const globalScope = self as any
+globalScope.window = globalScope
+globalScope.document = {
+  createElement: () => ({}),
+  createElementNS: () => ({}),
+}
+globalScope.navigator = {
+  userAgent: 'Worker',
+}
+
+console.log('[Worker] Polyfills applied: window =', typeof globalScope.window)
 
 try {
   // 絶対URLを使用してスクリプトをロード
