@@ -543,6 +543,7 @@ export function BlinkAnimationTool() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const currentFrameRef = useRef(0)
   const upngLoadedRef = useRef(false)
+  const presetSectionRef = useRef<HTMLDivElement>(null)
   const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
   const [downloadedFileSizeMB, setDownloadedFileSizeMB] = useState<number | null>(null)
   const [showPostDownloadMessage, setShowPostDownloadMessage] = useState(false)
@@ -676,6 +677,16 @@ export function BlinkAnimationTool() {
       setIsPlaying(false)
     }
   }, [images, useTwoImageMode])
+
+  // Auto-scroll to preset section when preview is ready
+  useEffect(() => {
+    if (previewReady && presetSectionRef.current) {
+      presetSectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+    }
+  }, [previewReady])
 
   // Canvas animation effect
   useEffect(() => {
@@ -1301,7 +1312,7 @@ export function BlinkAnimationTool() {
           </div>
           <div className="mt-2 px-1">
             <p className="text-xs text-gray-500">
-              💡 推奨：縦横2000px以下、各画像5MB以下｜生成されるAPNGは設定により変動します（目安：1〜10MB）
+              💡 推奨：縦横2000px以下｜生成されるAPNGは設定により変動します（目安：1〜10MB）
             </p>
           </div>
           <div className="mt-3 pt-3 border-t border-dashed border-gray-300 space-y-1">
@@ -1463,7 +1474,7 @@ export function BlinkAnimationTool() {
           </Card>
 
           {/* 右側: アニメーション設定 */}
-          <Card>
+          <Card ref={presetSectionRef}>
             <CardHeader>
               <CardTitle>2. アニメーション設定</CardTitle>
               <CardDescription>感情プリセットまたはカスタム設定を選択</CardDescription>
