@@ -543,6 +543,7 @@ export function BlinkAnimationTool() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const currentFrameRef = useRef(0)
   const upngLoadedRef = useRef(false)
+  const exportWarningRef = useRef<HTMLDivElement>(null)
   const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
   const [downloadedFileSizeMB, setDownloadedFileSizeMB] = useState<number | null>(null)
   const [showPostDownloadMessage, setShowPostDownloadMessage] = useState(false)
@@ -831,6 +832,16 @@ export function BlinkAnimationTool() {
     compressionLevel,
     imageQuality,
   ])
+
+  // Auto-scroll to export warning when exporting starts
+  useEffect(() => {
+    if (isExporting && exportWarningRef.current) {
+      exportWarningRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+      })
+    }
+  }, [isExporting])
 
   const exportAsAPNG = async () => {
     if (!canvasRef.current) {
@@ -1451,9 +1462,9 @@ export function BlinkAnimationTool() {
                 </Button>
 
                 {isExporting && (
-                  <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-3">
+                  <div ref={exportWarningRef} className="bg-amber-50 border-2 border-amber-400 rounded-lg p-3">
                     <p className="text-sm font-bold text-amber-900 text-center">
-                      ⚠️ 生成中です（時間がかかります）・「ページが応答しません」が出たら必ず<span className="text-red-600 font-bold">「待機」</span>を押してください
+                      ⚠️ 生成中です。処理完了まで10秒〜1分程度お待ちください
                     </p>
                   </div>
                 )}
