@@ -428,18 +428,24 @@ function generateStepFrames(step: LoopStep, fps: number): Frame[] {
 }
 
 function generateSingleBlink(speed: number, fps: number, closedHoldSeconds = 0): Frame[] {
-  const blinkFrames = Math.max(6, Math.round(speed * fps))
+  const blinkFrames = Math.max(8, Math.round(speed * fps)) // 最小8フレームに変更
 
-  // より自然な瞬きのために各段階のフレーム数を調整（合計100%になるように）
-  const openToHalfFrames = Math.max(1, Math.floor(blinkFrames * 0.2))   // 20%
-  const halfToClosedFrames = Math.max(1, Math.floor(blinkFrames * 0.3)) // 30%
-  const closedBaseFrames = Math.max(2, Math.floor(blinkFrames * 0.2))   // 20%（最小2フレーム）
-  const closedToHalfFrames = Math.max(1, Math.floor(blinkFrames * 0.2)) // 20%
-  const halfToOpenFrames = Math.max(1, Math.floor(blinkFrames * 0.1))   // 10%
+  // より自然な瞬きのために各段階のフレーム数を調整
+  const openStartFrames = Math.max(1, Math.floor(blinkFrames * 0.15))   // 15% 開いた目（開始）
+  const openToHalfFrames = Math.max(1, Math.floor(blinkFrames * 0.15))  // 15% 開→半開き
+  const halfToClosedFrames = Math.max(1, Math.floor(blinkFrames * 0.2)) // 20% 半開き→閉
+  const closedBaseFrames = Math.max(2, Math.floor(blinkFrames * 0.2))   // 20% 閉じた目（最小2）
+  const closedToHalfFrames = Math.max(1, Math.floor(blinkFrames * 0.15))// 15% 閉→半開き
+  const halfToOpenFrames = Math.max(1, Math.floor(blinkFrames * 0.15))  // 15% 半開き→開
 
   const holdFrames = Math.max(0, Math.round(closedHoldSeconds * fps))
 
   const frames: Frame[] = []
+
+  // 開いた目（開始状態）
+  for (let i = 0; i < openStartFrames; i++) {
+    frames.push({ imageType: 'open', duration: 1000 / fps })
+  }
 
   // 開 → 半開き
   for (let i = 0; i < openToHalfFrames; i++) {
