@@ -60,12 +60,12 @@ export async function encodeAPNGWithWorker(
       return
     }
 
-    // タイムアウト設定（180秒 = 3分）
+    // タイムアウト設定（60秒）
     const timeout = setTimeout(() => {
-      console.warn('[Worker Utils] Encoding timeout (180s)')
+      console.warn('[Worker Utils] Encoding timeout (60s)')
       worker.terminate()
-      reject(new Error('エンコード処理がタイムアウトしました（180秒）。画像サイズやフレーム数を減らしてください。'))
-    }, 180000)
+      reject(new Error('エンコード処理がタイムアウトしました（60秒）。画像サイズやフレーム数を減らしてください。'))
+    }, 60000)
 
     // Worker からのメッセージを処理
     worker.addEventListener('message', (event: MessageEvent<WorkerResponse>) => {
