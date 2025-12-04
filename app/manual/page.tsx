@@ -364,7 +364,7 @@ export default function ManualPage() {
                 <div>
                   <h4 className="font-semibold text-gray-800">Q. 生成されたファイルが大きすぎます</h4>
                   <p className="text-gray-700 text-sm">
-                    A. 「ファイルサイズの最適化」セクションを参照してください。特に元画像のサイズを小さくすることが最も効果的です。
+                    A. 元画像のサイズを小さくすることが最も効果的です。詳しくは<a href="#optimization" className="text-blue-600 hover:text-blue-800 hover:underline">「ファイルサイズの最適化」セクション</a>を参照してください。
                   </p>
                 </div>
 
