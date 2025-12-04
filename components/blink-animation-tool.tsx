@@ -542,6 +542,8 @@ export function BlinkAnimationTool() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const currentFrameRef = useRef(0)
   const upngLoadedRef = useRef(false)
+  const previewSectionRef = useRef<HTMLDivElement>(null)
+  const hasScrolledToPreviewRef = useRef(false)
   const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
   const [downloadedFileSizeMB, setDownloadedFileSizeMB] = useState<number | null>(null)
   const [showPostDownloadMessage, setShowPostDownloadMessage] = useState(false)
@@ -670,6 +672,17 @@ export function BlinkAnimationTool() {
     if (hasRequiredImages) {
       setPreviewReady(true)
       setIsPlaying(true)
+
+      // 画像が揃ったら一度だけプレビュー欄へスクロール
+      if (!hasScrolledToPreviewRef.current && previewSectionRef.current) {
+        setTimeout(() => {
+          previewSectionRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          })
+          hasScrolledToPreviewRef.current = true
+        }, 100)
+      }
     } else {
       setPreviewReady(false)
       setIsPlaying(false)
@@ -1340,7 +1353,7 @@ export function BlinkAnimationTool() {
       {/* 設定とプレビューセクション（横並び） */}
       {previewReady && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={previewSectionRef}>
           {/* 左側: プレビュー */}
           <Card>
             <CardHeader>
