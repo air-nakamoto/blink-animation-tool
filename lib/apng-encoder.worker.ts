@@ -14,21 +14,7 @@ import type {
 declare const self: DedicatedWorkerGlobalScope
 declare let UPNG: UPNG
 
-// Worker 初期化時に UPNG.js をロード
-console.log('[Worker] Initializing APNG encoder worker...')
-try {
-  // public フォルダからスクリプトをロード
-  console.log('[Worker] Loading pako.min.js...')
-  importScripts('/pako.min.js')
-  console.log('[Worker] Loading upng.js...')
-  importScripts('/upng.js')
-  console.log('[Worker] Libraries loaded successfully')
-} catch (error) {
-  console.error('[Worker] Failed to load UPNG.js or pako.js:', error)
-  sendError(`ライブラリの読み込みに失敗: ${error instanceof Error ? error.message : String(error)}`)
-}
-
-// 進捗を送信するヘルパー
+// 進捗を送信するヘルパー（先に定義）
 function sendProgress(value: number, message?: string) {
   const response: ProgressResponse = {
     type: 'progress',
@@ -58,6 +44,32 @@ function sendComplete(buffer: ArrayBuffer, sizeMB: number, attempts: number, fin
   }
   // Transferable objects を使用してメモリ効率を向上
   self.postMessage(response, [buffer])
+}
+
+// Worker 初期化時に UPNG.js をロード
+console.log('[Worker] Initializing APNG encoder worker...')
+console.log('[Worker] Worker location:', self.location.href)
+
+try {
+  // 絶対URLを使用してスクリプトをロード
+  const baseURL = self.location.origin
+  console.log('[Worker] Base URL:', baseURL)
+
+  const pakoURL = `${baseURL}/pako.min.js`
+  const upngURL = `${baseURL}/upng.js`
+
+  console.log('[Worker] Loading pako from:', pakoURL)
+  importScripts(pakoURL)
+
+  console.log('[Worker] Loading UPNG from:', upngURL)
+  importScripts(upngURL)
+
+  console.log('[Worker] Libraries loaded successfully')
+} catch (error) {
+  console.error('[Worker] Failed to load libraries:', error)
+  const errorMsg = `ライブラリの読み込みに失敗: ${error instanceof Error ? error.message : String(error)}`
+  console.error('[Worker]', errorMsg)
+  sendError(errorMsg)
 }
 
 // エンコード処理のメインロジック
