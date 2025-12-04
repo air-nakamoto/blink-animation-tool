@@ -15,12 +15,17 @@ declare const self: DedicatedWorkerGlobalScope
 declare let UPNG: UPNG
 
 // Worker 初期化時に UPNG.js をロード
+console.log('[Worker] Initializing APNG encoder worker...')
 try {
   // public フォルダからスクリプトをロード
+  console.log('[Worker] Loading pako.min.js...')
   importScripts('/pako.min.js')
+  console.log('[Worker] Loading upng.js...')
   importScripts('/upng.js')
+  console.log('[Worker] Libraries loaded successfully')
 } catch (error) {
-  console.error('Failed to load UPNG.js or pako.js in worker:', error)
+  console.error('[Worker] Failed to load UPNG.js or pako.js:', error)
+  sendError(`ライブラリの読み込みに失敗: ${error instanceof Error ? error.message : String(error)}`)
 }
 
 // 進捗を送信するヘルパー
@@ -153,12 +158,17 @@ async function encodeAPNG(request: EncodeRequest) {
 
 // メッセージハンドラ
 self.addEventListener('message', async (event: MessageEvent<WorkerRequest>) => {
+  console.log('[Worker] Message received:', event.data.type)
   const request = event.data
 
   if (request.type === 'encode') {
+    console.log(`[Worker] Starting encoding: ${request.buffers.length} frames, ${request.width}x${request.height}px`)
     await encodeAPNG(request)
+  } else {
+    console.warn('[Worker] Unknown request type:', request)
   }
 })
 
 // Worker 準備完了を通知
+console.log('[Worker] Worker ready and waiting for messages')
 sendProgress(0, 'Worker initialized')
