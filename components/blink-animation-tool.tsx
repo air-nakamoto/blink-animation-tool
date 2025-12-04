@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Play, Pause, ChevronDown, Download, Plus, Trash2, Loader2, HelpCircle, ExternalLink } from "lucide-react"
+import { ChevronDown, Download, Plus, Trash2, Loader2, HelpCircle, ExternalLink } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import Link from "next/link"
+import { encodeAPNGWithWorker, isWorkerSupported } from "@/lib/apng-worker-utils"
 
 // UPNG type definition
 declare global {
@@ -524,7 +525,7 @@ export function BlinkAnimationTool() {
   })
   const [previewReady, setPreviewReady] = useState(false)
 
-  const [isPlaying, setIsPlaying] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(true)
   const [exportProgress, setExportProgress] = useState(0)
   const [isExporting, setIsExporting] = useState(false)
   const [compressionLevel, setCompressionLevel] = useState(5)
@@ -562,6 +563,7 @@ export function BlinkAnimationTool() {
   const currentFrameRef = useRef(0)
   const upngLoadedRef = useRef(false)
   const previewSectionRef = useRef<HTMLDivElement>(null)
+  const isExportingRef = useRef(false)
   const hasScrolledToPreviewRef = useRef(false)
   const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
   const [downloadedFileSizeMB, setDownloadedFileSizeMB] = useState<number | null>(null)
@@ -707,6 +709,17 @@ export function BlinkAnimationTool() {
       setIsPlaying(false)
     }
   }, [images, useTwoImageMode])
+
+  // Auto-scroll to preview section when preview is ready (first time only)
+  useEffect(() => {
+    if (previewReady && previewSectionRef.current && !hasScrolledToPreviewRef.current) {
+      hasScrolledToPreviewRef.current = true
+      previewSectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      })
+    }
+  }, [previewReady])
 
   // Canvas animation effect
   useEffect(() => {
@@ -883,7 +896,7 @@ export function BlinkAnimationTool() {
       setExportProgress(10)
 
       const tempCanvas = document.createElement("canvas")
-      const tempCtx = tempCanvas.getContext("2d")
+      const tempCtx = tempCanvas.getContext("2d", { willReadFrequently: true })
       if (!tempCtx) throw new Error("Failed to get canvas context")
 
       const loadedImages: Record<string, HTMLImageElement> = {}
@@ -959,10 +972,7 @@ export function BlinkAnimationTool() {
         )
       }
 
-      let currentColorCount = computeColorCount(imageQuality, compressionLevel)
-      let bestBuffer: ArrayBuffer | null = null
-      let bestSizeMB = Infinity
-      let sizeMB = Infinity
+      const currentColorCount = computeColorCount(imageQuality, compressionLevel)
 
       const getImageForFrame = (type: Frame["imageType"]) => {
         if (type === "half") {
@@ -974,103 +984,94 @@ export function BlinkAnimationTool() {
         return loadedImages.closed || loadedImages.open || loadedImages.halfOpen || null
       }
 
-      const encodeFrames = async (framesToEncode: Frame[], colorCount: number) => {
-        const delays: number[] = []
-        const buffers: ArrayBuffer[] = []
-        let lastYieldTime = performance.now()
+      // フレームバッファと遅延配列を準備（メインスレッドで実行）
+      console.log("Preparing frame buffers...")
+      setExportProgress(30)
 
+      const delays: number[] = []
+      const buffers: ArrayBuffer[] = []
+      let lastYieldTime = performance.now()
+
+      for (let index = 0; index < frames.length; index++) {
+        const frame = frames[index]
+        const img = getImageForFrame(frame.imageType)
+        if (!img) continue
+
+        tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
+        tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
+
+        // バッファのコピーを作成（Transferable objects用）
+        buffers.push(imageData.data.buffer.slice(0))
+        delays.push(Math.max(1, Math.round(frame.duration)))
+
+        setExportProgress(30 + (index / frames.length) * 25)
+
+        const currentTime = performance.now()
+        const elapsedTime = currentTime - lastYieldTime
+
+        // 3フレームごと、または30ms以上経過したらメインスレッドを開放
+        if (index % 3 === 0 || elapsedTime > 30) {
+          await new Promise(resolve => setTimeout(resolve, 10))
+          lastYieldTime = performance.now()
+        }
+      }
+
+      if (!buffers.length) {
+        throw new Error("フレームの描画に失敗しました。")
+      }
+
+      console.log(`Frame buffers prepared: ${buffers.length} frames`)
+      setExportProgress(55)
+
+      // Web Worker を使用してエンコード
+      let result
+      const useWorker = isWorkerSupported()
+
+      if (useWorker) {
+        console.log("Using Web Worker for encoding...")
         try {
-          for (let index = 0; index < framesToEncode.length; index++) {
-            const frame = framesToEncode[index]
-            const img = getImageForFrame(frame.imageType)
-            if (!img) continue
-
-            tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height)
-            tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height)
-            buffers.push(imageData.data.buffer)
-            delays.push(Math.max(1, Math.round(frame.duration)))
-            setExportProgress(20 + (index / framesToEncode.length) * 40)
-
-            const currentTime = performance.now()
-            const elapsedTime = currentTime - lastYieldTime
-
-            // 3フレームごと、または30ms以上経過したらメインスレッドを開放
-            if (index % 3 === 0 || elapsedTime > 30) {
-              await new Promise(resolve => setTimeout(resolve, 10))
-              lastYieldTime = performance.now()
-            }
-          }
-
-          if (!buffers.length) {
-            throw new Error("フレームの描画に失敗しました。")
-          }
-
-          // エンコード前にメインスレッドを開放
-          await new Promise(resolve => setTimeout(resolve, 10))
-
-          const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, colorCount, delays)
-
-          // エンコード後にもメインスレッドを開放
-          await new Promise(resolve => setTimeout(resolve, 10))
-
-          return {
-            buffer: encoded,
-            sizeMB: encoded.byteLength / (1024 * 1024),
-          }
+          result = await encodeAPNGWithWorker({
+            buffers,
+            width: tempCanvas.width,
+            height: tempCanvas.height,
+            delays,
+            initialColorCount: currentColorCount,
+            targetSizeMB: SIZE_WARNING_THRESHOLD_MB,
+            maxAttempts: 8,
+            onProgress: (progress, message) => {
+              setExportProgress(progress)
+              if (message) {
+                console.log(`[Worker] ${message}`)
+              }
+            },
+          })
         } catch (error) {
-          // メモリ不足エラーの場合は詳細なメッセージを提供
-          if (error instanceof RangeError && error.message.includes("allocation")) {
-            const estimatedMemoryMB = (framesToEncode.length * tempCanvas.width * tempCanvas.height * 4) / (1024 * 1024)
-            throw new Error(
-              `メモリ不足のため生成できません。\n\n` +
-              `推奨される対処法：\n` +
-              `1. 画像サイズを縮小する（現在：${tempCanvas.width}×${tempCanvas.height}px）\n` +
-              `2. アニメーション長さを短くする（現在：${animationLength}秒）\n` +
-              `3. フレームレートを下げる（現在：${fps}fps）\n\n` +
-              `必要メモリ：約${estimatedMemoryMB.toFixed(0)}MB`
-            )
-          }
+          console.error("Worker encoding failed:", error)
           throw error
         }
+      } else {
+        // Web Worker がサポートされていない場合のフォールバック
+        console.log("Web Worker not supported, using main thread encoding...")
+        if (!window.UPNG) {
+          throw new Error("UPNG.js is not loaded")
+        }
+
+        setExportProgress(60)
+        const encoded = window.UPNG.encode(buffers, tempCanvas.width, tempCanvas.height, currentColorCount, delays)
+        result = {
+          buffer: encoded,
+          sizeMB: encoded.byteLength / (1024 * 1024),
+          attempts: 1,
+          finalColorCount: currentColorCount,
+        }
+        setExportProgress(90)
       }
 
-      for (let attempt = 0; attempt < 8; attempt++) {
-        console.log(`Encoding attempt ${attempt + 1} with colorCount=${currentColorCount}`)
-        setExportProgress(20 + attempt * 8)
+      const bestBuffer = result.buffer
+      const bestSizeMB = result.sizeMB
 
-        // 各試行の前にメインスレッドを開放
-        await new Promise(resolve => setTimeout(resolve, 10))
-
-        const { buffer, sizeMB: resultSize } = await encodeFrames(frames, currentColorCount)
-        sizeMB = resultSize
-
-        if (sizeMB < bestSizeMB) {
-          bestBuffer = buffer
-          bestSizeMB = sizeMB
-        }
-
-        if (sizeMB <= SIZE_WARNING_THRESHOLD_MB) {
-          break
-        }
-
-        if (currentColorCount > 32) {
-          currentColorCount = Math.max(16, Math.floor(currentColorCount / 2))
-          continue
-        }
-
-        const reduced = reduceFrameDensity(frames)
-        if (reduced.length === frames.length) {
-          console.warn("Frame reduction could not reduce frame count further.")
-          break
-        }
-        frames = reduced
-      }
-
-      if (!bestBuffer) {
-        throw new Error("APNGの生成に失敗しました。")
-      }
-
+      console.log(`Encoding completed: ${bestSizeMB.toFixed(2)}MB in ${result.attempts} attempts`)
       setEstimatedSizeMB(bestSizeMB)
       setExportProgress(95)
 
@@ -1282,7 +1283,7 @@ export function BlinkAnimationTool() {
           <CardHeader>
             <CardTitle>1. 画像をアップロード</CardTitle>
             <CardDescription>
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm text-gray-600">
                   3枚の画像（開いた目、半開き、閉じた目）をアップロードしてください
                 </p>
@@ -1342,12 +1343,12 @@ export function BlinkAnimationTool() {
               </svg>
             )}
           </div>
-          <div className="mt-3 px-1">
+          <div className="mt-2 px-1">
             <p className="text-xs text-gray-500">
-              💡 推奨：縦横2000px以下、各画像5MB以下｜生成されるAPNGは設定により変動します（目安：1〜10MB）
+              💡 推奨：縦横2000px以下｜生成されるAPNGは設定により変動します（目安：1〜10MB）
             </p>
           </div>
-          <div className="mt-4 pt-4 border-t border-dashed border-gray-300 space-y-1">
+          <div className="mt-3 pt-3 border-t border-dashed border-gray-300 space-y-1">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="two-image-mode"
@@ -1374,11 +1375,11 @@ export function BlinkAnimationTool() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={previewSectionRef}>
           {/* 左側: プレビュー */}
-          <Card>
+          <Card ref={previewSectionRef}>
             <CardHeader>
               <CardTitle>プレビュー</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2">
               <div className="flex justify-center">
                 <canvas
                   ref={canvasRef}
@@ -1387,38 +1388,7 @@ export function BlinkAnimationTool() {
                 />
               </div>
 
-              <div className="flex justify-center gap-4">
-                <Button
-                  onClick={() => {
-                    if (isPlaying) {
-                      setIsPlaying(false)
-                      if (animationRef.current) {
-                        cancelAnimationFrame(animationRef.current)
-                      }
-                      if (timeoutRef.current) {
-                        clearTimeout(timeoutRef.current)
-                      }
-                    } else {
-                      setIsPlaying(true)
-                      currentFrameRef.current = 0
-                    }
-                  }}
-                >
-                  {isPlaying ? (
-                    <>
-                      <Pause className="w-4 h-4 mr-2" />
-                      停止
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 mr-2" />
-                      再生
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              <div className="border-t pt-4 space-y-4">
+              <div className="border-t pt-2 mt-2 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-sm font-semibold text-gray-900">3. アニメーションPNGをダウンロード</h4>
@@ -1462,10 +1432,16 @@ export function BlinkAnimationTool() {
                 </div>
 
                 <Button
-                  className="w-full"
+                  className="w-full py-6"
                   size="lg"
                   disabled={isExporting || !previewReady}
                   onClick={async () => {
+                    // 既にエクスポート中の場合は早期リターン（連続クリック防止）
+                    if (isExportingRef.current) {
+                      return
+                    }
+
+                    isExportingRef.current = true
                     setIsExporting(true)
                     setExportProgress(0)
 
@@ -1475,16 +1451,22 @@ export function BlinkAnimationTool() {
                       console.error("Export error:", error)
                       alert(`ダウンロード中にエラーが発生しました: ${error}`)
                     } finally {
+                      isExportingRef.current = false
                       setIsExporting(false)
                       setExportProgress(0)
                     }
                   }}
                 >
                   {isExporting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      生成中...
-                    </>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center">
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        生成中...
+                      </div>
+                      <div className="text-xs">
+                        10秒〜1分程度お待ちください
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <Download className="w-4 h-4 mr-2" />
@@ -1492,14 +1474,6 @@ export function BlinkAnimationTool() {
                     </>
                   )}
                 </Button>
-
-                {isExporting && (
-                  <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-3">
-                    <p className="text-sm font-bold text-amber-900 text-center">
-                      ⚠️ 生成中です（時間がかかります）・「ページが応答しません」が出たら必ず<span className="text-red-600 font-bold">「待機」</span>を押してください
-                    </p>
-                  </div>
-                )}
 
                 {showPostDownloadMessage && downloadedFileSizeMB !== null && (
                   <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
