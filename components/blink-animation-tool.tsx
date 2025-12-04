@@ -852,7 +852,7 @@ export function BlinkAnimationTool() {
       setExportProgress(10)
 
       const tempCanvas = document.createElement("canvas")
-      const tempCtx = tempCanvas.getContext("2d")
+      const tempCtx = tempCanvas.getContext("2d", { willReadFrequently: true })
       if (!tempCtx) throw new Error("Failed to get canvas context")
 
       const loadedImages: Record<string, HTMLImageElement> = {}
