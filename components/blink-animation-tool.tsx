@@ -371,7 +371,7 @@ const EMOTION_CATEGORY_TABS: Array<{ value: EmotionCategory; label: string }> = 
 const getPresetById = (id: string) => EMOTION_PRESETS.find((preset) => preset.id === id)
 
 function generateLoopPatternFrames(
-  loopPattern: LoopPattern, 
+  loopPattern: LoopPattern,
   settings: BlinkSettings
 ): Frame[] {
   const allFrames: Frame[] = []
@@ -379,14 +379,21 @@ function generateLoopPatternFrames(
   const totalDuration = settings.animationLength
   let currentTime = 0
 
+  // アニメーション開始時に開いた目の状態を追加（最低でも0.3秒）
+  const initialOpenFrames = Math.max(Math.round(0.3 * fps), 5)
+  for (let i = 0; i < initialOpenFrames; i++) {
+    allFrames.push({ imageType: 'open', duration: 1000 / fps })
+  }
+  currentTime += 0.3
+
   // アニメーション長さまでループパターンを繰り返す
   while (currentTime < totalDuration) {
     for (const step of loopPattern.steps) {
       const stepFrames = generateStepFrames(step, fps)
       allFrames.push(...stepFrames)
-      
+
       currentTime += calculateStepDuration(step)
-      
+
       if (currentTime >= totalDuration) break
     }
   }
@@ -423,41 +430,39 @@ function generateStepFrames(step: LoopStep, fps: number): Frame[] {
 function generateSingleBlink(speed: number, fps: number, closedHoldSeconds = 0): Frame[] {
   const blinkFrames = Math.max(6, Math.round(speed * fps))
 
-  // より自然な瞬きのために各段階のフレーム数を調整
-  const halfFrames = Math.max(1, Math.floor(blinkFrames * 0.25))  // 25%を半開きに
-  const closedFrames = Math.max(2, Math.floor(blinkFrames * 0.35)) // 35%を閉じた目に（最小2フレーム）
+  // より自然な瞬きのために各段階のフレーム数を調整（合計100%になるように）
+  const openToHalfFrames = Math.max(1, Math.floor(blinkFrames * 0.2))   // 20%
+  const halfToClosedFrames = Math.max(1, Math.floor(blinkFrames * 0.3)) // 30%
+  const closedBaseFrames = Math.max(2, Math.floor(blinkFrames * 0.2))   // 20%（最小2フレーム）
+  const closedToHalfFrames = Math.max(1, Math.floor(blinkFrames * 0.2)) // 20%
+  const halfToOpenFrames = Math.max(1, Math.floor(blinkFrames * 0.1))   // 10%
+
   const holdFrames = Math.max(0, Math.round(closedHoldSeconds * fps))
 
   const frames: Frame[] = []
 
-  // 開いた目（開始状態）
-  const openStartFrames = Math.max(1, Math.floor(blinkFrames * 0.15)) // 15%を開始状態に
-  for (let i = 0; i < openStartFrames; i++) {
-    frames.push({ imageType: 'open', duration: 1000 / fps })
-  }
-
   // 開 → 半開き
-  for (let i = 0; i < halfFrames; i++) {
+  for (let i = 0; i < openToHalfFrames; i++) {
     frames.push({ imageType: 'half', duration: 1000 / fps })
   }
 
   // 半開き → 閉
-  for (let i = 0; i < closedFrames; i++) {
+  for (let i = 0; i < halfToClosedFrames; i++) {
     frames.push({ imageType: 'closed', duration: 1000 / fps })
   }
 
-  // 閉じた状態を維持
-  for (let i = 0; i < holdFrames; i++) {
+  // 閉じた状態を維持（基本フレーム + ホールド）
+  for (let i = 0; i < closedBaseFrames + holdFrames; i++) {
     frames.push({ imageType: 'closed', duration: 1000 / fps })
   }
 
   // 閉 → 半開き
-  for (let i = 0; i < halfFrames; i++) {
+  for (let i = 0; i < closedToHalfFrames; i++) {
     frames.push({ imageType: 'half', duration: 1000 / fps })
   }
 
   // 半開き → 開
-  for (let i = 0; i < openStartFrames; i++) {
+  for (let i = 0; i < halfToOpenFrames; i++) {
     frames.push({ imageType: 'open', duration: 1000 / fps })
   }
 
