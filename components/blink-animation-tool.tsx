@@ -1239,7 +1239,7 @@ export function BlinkAnimationTool() {
           <CardHeader>
             <CardTitle>1. 画像をアップロード</CardTitle>
             <CardDescription>
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm text-gray-600">
                   3枚の画像（開いた目、半開き、閉じた目）をアップロードしてください
                 </p>
@@ -1299,12 +1299,12 @@ export function BlinkAnimationTool() {
               </svg>
             )}
           </div>
-          <div className="mt-3 px-1">
+          <div className="mt-2 px-1">
             <p className="text-xs text-gray-500">
               💡 推奨：縦横2000px以下、各画像5MB以下｜生成されるAPNGは設定により変動します（目安：1〜10MB）
             </p>
           </div>
-          <div className="mt-4 pt-4 border-t border-dashed border-gray-300 space-y-1">
+          <div className="mt-3 pt-3 border-t border-dashed border-gray-300 space-y-1">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="two-image-mode"
@@ -1332,7 +1332,10 @@ export function BlinkAnimationTool() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 左側: プレビュー */}
           <Card>
-            <CardContent className="space-y-2 pt-6">
+            <CardHeader>
+              <CardTitle>プレビュー</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
               <div className="flex justify-center">
                 <canvas
                   ref={canvasRef}
