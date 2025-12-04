@@ -430,6 +430,12 @@ function generateSingleBlink(speed: number, fps: number, closedHoldSeconds = 0):
 
   const frames: Frame[] = []
 
+  // 開いた目（開始状態）
+  const openStartFrames = Math.max(1, Math.floor(blinkFrames * 0.15)) // 15%を開始状態に
+  for (let i = 0; i < openStartFrames; i++) {
+    frames.push({ imageType: 'open', duration: 1000 / fps })
+  }
+
   // 開 → 半開き
   for (let i = 0; i < halfFrames; i++) {
     frames.push({ imageType: 'half', duration: 1000 / fps })
@@ -451,7 +457,9 @@ function generateSingleBlink(speed: number, fps: number, closedHoldSeconds = 0):
   }
 
   // 半開き → 開
-  frames.push({ imageType: 'open', duration: 1000 / fps })
+  for (let i = 0; i < openStartFrames; i++) {
+    frames.push({ imageType: 'open', duration: 1000 / fps })
+  }
 
   return frames
 }
