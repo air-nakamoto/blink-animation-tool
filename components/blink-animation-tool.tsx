@@ -371,7 +371,7 @@ const EMOTION_CATEGORY_TABS: Array<{ value: EmotionCategory; label: string }> = 
 const getPresetById = (id: string) => EMOTION_PRESETS.find((preset) => preset.id === id)
 
 function generateLoopPatternFrames(
-  loopPattern: LoopPattern, 
+  loopPattern: LoopPattern,
   settings: BlinkSettings
 ): Frame[] {
   const allFrames: Frame[] = []
@@ -379,14 +379,21 @@ function generateLoopPatternFrames(
   const totalDuration = settings.animationLength
   let currentTime = 0
 
+  // アニメーション開始時に開いた目の状態を追加（最低でも0.3秒）
+  const initialOpenFrames = Math.max(Math.round(0.3 * fps), 5)
+  for (let i = 0; i < initialOpenFrames; i++) {
+    allFrames.push({ imageType: 'open', duration: 1000 / fps })
+  }
+  currentTime += 0.3
+
   // アニメーション長さまでループパターンを繰り返す
   while (currentTime < totalDuration) {
     for (const step of loopPattern.steps) {
       const stepFrames = generateStepFrames(step, fps)
       allFrames.push(...stepFrames)
-      
+
       currentTime += calculateStepDuration(step)
-      
+
       if (currentTime >= totalDuration) break
     }
   }
@@ -421,37 +428,49 @@ function generateStepFrames(step: LoopStep, fps: number): Frame[] {
 }
 
 function generateSingleBlink(speed: number, fps: number, closedHoldSeconds = 0): Frame[] {
-  const blinkFrames = Math.max(6, Math.round(speed * fps))
+  const blinkFrames = Math.max(8, Math.round(speed * fps)) // 最小8フレームに変更
 
   // より自然な瞬きのために各段階のフレーム数を調整
-  const halfFrames = Math.max(1, Math.floor(blinkFrames * 0.25))  // 25%を半開きに
-  const closedFrames = Math.max(2, Math.floor(blinkFrames * 0.35)) // 35%を閉じた目に（最小2フレーム）
+  const openStartFrames = Math.max(1, Math.floor(blinkFrames * 0.15))   // 15% 開いた目（開始）
+  const openToHalfFrames = Math.max(1, Math.floor(blinkFrames * 0.15))  // 15% 開→半開き
+  const halfToClosedFrames = Math.max(1, Math.floor(blinkFrames * 0.2)) // 20% 半開き→閉
+  const closedBaseFrames = Math.max(2, Math.floor(blinkFrames * 0.2))   // 20% 閉じた目（最小2）
+  const closedToHalfFrames = Math.max(1, Math.floor(blinkFrames * 0.15))// 15% 閉→半開き
+  const halfToOpenFrames = Math.max(1, Math.floor(blinkFrames * 0.15))  // 15% 半開き→開
+
   const holdFrames = Math.max(0, Math.round(closedHoldSeconds * fps))
 
   const frames: Frame[] = []
 
+  // 開いた目（開始状態）
+  for (let i = 0; i < openStartFrames; i++) {
+    frames.push({ imageType: 'open', duration: 1000 / fps })
+  }
+
   // 開 → 半開き
-  for (let i = 0; i < halfFrames; i++) {
+  for (let i = 0; i < openToHalfFrames; i++) {
     frames.push({ imageType: 'half', duration: 1000 / fps })
   }
 
   // 半開き → 閉
-  for (let i = 0; i < closedFrames; i++) {
+  for (let i = 0; i < halfToClosedFrames; i++) {
     frames.push({ imageType: 'closed', duration: 1000 / fps })
   }
 
-  // 閉じた状態を維持
-  for (let i = 0; i < holdFrames; i++) {
+  // 閉じた状態を維持（基本フレーム + ホールド）
+  for (let i = 0; i < closedBaseFrames + holdFrames; i++) {
     frames.push({ imageType: 'closed', duration: 1000 / fps })
   }
 
   // 閉 → 半開き
-  for (let i = 0; i < halfFrames; i++) {
+  for (let i = 0; i < closedToHalfFrames; i++) {
     frames.push({ imageType: 'half', duration: 1000 / fps })
   }
 
   // 半開き → 開
-  frames.push({ imageType: 'open', duration: 1000 / fps })
+  for (let i = 0; i < halfToOpenFrames; i++) {
+    frames.push({ imageType: 'open', duration: 1000 / fps })
+  }
 
   return frames
 }
@@ -542,6 +561,8 @@ export function BlinkAnimationTool() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const currentFrameRef = useRef(0)
   const upngLoadedRef = useRef(false)
+  const previewSectionRef = useRef<HTMLDivElement>(null)
+  const hasScrolledToPreviewRef = useRef(false)
   const [estimatedSizeMB, setEstimatedSizeMB] = useState<number | null>(null)
   const [downloadedFileSizeMB, setDownloadedFileSizeMB] = useState<number | null>(null)
   const [showPostDownloadMessage, setShowPostDownloadMessage] = useState(false)
@@ -670,6 +691,17 @@ export function BlinkAnimationTool() {
     if (hasRequiredImages) {
       setPreviewReady(true)
       setIsPlaying(true)
+
+      // 画像が揃ったら一度だけプレビュー欄へスクロール
+      if (!hasScrolledToPreviewRef.current && previewSectionRef.current) {
+        setTimeout(() => {
+          previewSectionRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          })
+          hasScrolledToPreviewRef.current = true
+        }, 100)
+      }
     } else {
       setPreviewReady(false)
       setIsPlaying(false)
@@ -1340,7 +1372,7 @@ export function BlinkAnimationTool() {
       {/* 設定とプレビューセクション（横並び） */}
       {previewReady && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={previewSectionRef}>
           {/* 左側: プレビュー */}
           <Card>
             <CardHeader>
